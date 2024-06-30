@@ -168,22 +168,19 @@ def try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
                     if feasibility_check == 0:  # feasible!
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
                         return Bundle(all_orders, rider, list(shop_pem), list(dlv_pem),
-                                      bundle1.total_volume + bundle2.total_volume, total_dist), rider
+                                      bundle1.total_volume + bundle2.total_volume, total_dist)
 
-    return None, None
-
+    return None
 
 # 주어진 bundle의 배달원을 변경하는것이 가능한지 테스트
 # Note: 원래 bindle의 방문 순서가 최적이 아닐수도 있기 때문에 방문 순서 조합을 다시 확인함
 def try_bundle_rider_changing(all_orders, bundle, rider):
-    if rider.available_number < 1:
-        return False
     if bundle.rider.type != rider.type and bundle.total_volume <= rider.capa:
         orders = bundle.shop_seq
         for shop_pem in permutations(orders):
             for dlv_pem in permutations(orders):
                 feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
-                if feasibility_check == 0 and rider.available_number > 0:  # feasible!
+                if feasibility_check == 0:  # feasible!
                     # Note: in-place replacing!
                     bundle.shop_seq = list(shop_pem)
                     bundle.dlv_seq = list(dlv_pem)
@@ -476,7 +473,8 @@ def get_optimal_path(all_orders, bundle, rider):
         orders = bundle.shop_seq
         is_feasible = False
         cur_optimal_cost = bundle.cost
-        tmp_bundle = bundle
+        tmp_bundle = bundle.copy()
+        ret_bundle = tmp_bundle
         for shop_pem in permutations(orders):
             for dlv_pem in permutations(orders):
                 feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
@@ -489,51 +487,18 @@ def get_optimal_path(all_orders, bundle, rider):
                     is_feasible = True
                     if tmp_bundle.cost < cur_optimal_cost:
                         cur_optimal_cost = tmp_bundle.cost
-                        bundle = tmp_bundle
+                        ret_bundle = tmp_bundle.copy()
         if is_feasible:
-            return tmp_bundle
+            return ret_bundle
         else:
             return bundle
 
 
-def get_cur_proba(E1, E2, k, T):
-    return np.exp((E1 - E2) / (k * T))
-
+def get_cur_proba(E1, E2, k_, T):
+    return np.exp((E1 - E2) / (k_ * T))
 
 def select_three_bundles(all_bundles):
     bundle1, bundle2, bundle3 = random.sample(all_bundles, 3)
     return bundle1, bundle2, bundle3
 
-
-def get_neighbor_state(K, dist_mat, all_orders, all_riders, all_bundles, proba):
-    ret_bundles = all_bundles.copy()
-    cur_cost = 0
-
-    #배달원 변경
-    if 0.5 < random.random():
-        cur_bundle = random.choice(all_bundles)
-        new_rider = get_cheaper_available_riders(all_riders, cur_bundle.rider)
-        if new_rider is not None and try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
-            old_rider = cur_bundle.rider
-            if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
-                old_rider.available_number += 1
-                new_rider.available_number -= 1
-
-    #배달 묶기
-    if 0.5 < random.random():
-        bundle1, bundle2 = random.sample(ret_bundles, 2)
-        new_bundle, new_rider = try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2)
-        if new_bundle is not None and new_rider.available_number > 0:
-            ret_bundles.remove(bundle1)
-            bundle1.rider.available_number += 1
-
-            ret_bundles.remove(bundle2)
-            bundle2.rider.available_number += 1
-
-            ret_bundles.append(new_bundle)
-            new_bundle.rider.available_number -= 1
-
-    cur_cost = sum((bundle.cost for bundle in ret_bundles)) / K
-
-    return ret_bundles, cur_cost
 
