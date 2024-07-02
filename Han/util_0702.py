@@ -9,26 +9,11 @@ import copy
 import math
 import matplotlib.pyplot as plt
 
-def get_dist_by_coords(x1, y1, x2, y2):
-    dist = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5
+def get_dist_by_coords(x1, y1, x2, y2, p=1.3):
+    distance = ((abs(x1 - x2) ** p) + (abs(y1 - y2) ** p)) ** (1/p) * 125950
+    
+    return distance
 
-    # Step 2: Calculate the cosine similarity
-    # For cosine similarity, we need to compute the dot product and magnitudes
-    dot_product = x1 * x2 + y1 * y2
-    magnitude1 = math.sqrt(x1**2 + y1**2)
-    magnitude2 = math.sqrt(x2**2 + y2**2)
-    
-    # Ensure denominators are not zero (avoid division by zero)
-    if magnitude1 == 0 or magnitude2 == 0:
-        return 0
-    
-    cosine_similarity = dot_product / (magnitude1 * magnitude2)
-    
-    # Step 3: Use the cosine similarity as weight
-    # Weight based on cosine similarity and distance
-    weight = cosine_similarity / (dist + 1)  # Adding 1 to avoid division by zero
-    
-    return weight
 # 주문 class
 class Order:
     def __init__(self, order_info):
