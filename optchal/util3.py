@@ -544,11 +544,28 @@ def get_cos_based_weight(all_orders, dist_mat, bundle1, bundle2, idx1, idx2):
     dlv_centroid2 = [t / len(bundle2.shop_seq) for t in dlv_centroid2]
 
     cos_theta = get_cos_theta(shp_centroid1, dlv_centroid1, shp_centroid2, dlv_centroid2)
-    dist = 1
+    dist = (math.sqrt((shp_centroid1[0] - shp_centroid2[0])**2 + (shp_centroid1[1] - shp_centroid2[1])**2) * 
+            math.sqrt((dlv_centroid1[0] - dlv_centroid2[0])**2 + (dlv_centroid1[1] - dlv_centroid2[1])**2))
     weight = dist * math.exp(-1 * cos_theta)
 
     return weight
 
+def try_path_optimize(all_orders, bundle):
+    ret_val = False
+    orders = bundle.shop_seq
+    opt_dlv_dist = 1000000000
+    for shop_pem in permutations(orders):
+        for dlv_pem in permutations(orders):
+            feasibility_check, dlv_time = test_route_feasibility(all_orders, bundle.rider, shop_pem, dlv_pem)
+            if feasibility_check == 0:  # feasible!
+                # Note: in-place replacing!
+                if ret_val == False or dlv_time < opt_dlv_dist:
+                    bundle.shop_seq = list(shop_pem)
+                    bundle.dlv_seq = list(dlv_pem)
+                    bundle.update_cost()
+                    ret_val = True
+
+    return ret_val
 
 def make_it_optimal(all_orders, all_riders, cur_bundle):
     old_rider = cur_bundle.rider
@@ -557,5 +574,6 @@ def make_it_optimal(all_orders, all_riders, cur_bundle):
         if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
             new_rider.available_number -= 1
             old_rider.available_number += 1
+    else: try_path_optimize(all_orders, cur_bundle)
 
 #---------------- added ----------------#
