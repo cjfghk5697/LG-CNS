@@ -67,7 +67,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                 is_merged = True
 
         if is_merged:
-            for i in range(K):
+            for i in range(len(all_bundles)):
                 if ch[i] == 0:
                     new_bundles.append(all_bundles[i])
 
@@ -76,6 +76,14 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
             all_bundles = deepcopy(new_bundles)
             del new_bundles[:]
+
+            ch = [0 for i in range(K)]
+
+            sz = len(all_bundles)
+            for i in range(0, sz):
+                for j in range(i + 1, sz):
+                    cur_weight = get_cos_based_weight(all_orders, dist_mat, all_bundles[i], all_bundles[j], i, j)
+                    heapq.heappush(pq, (cur_weight, [i, j]))
     
     print("iter_cnt :",iter_cnt)
     #----------------------- merge by cos sim -----------------------#
