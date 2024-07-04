@@ -1,4 +1,4 @@
-from util_0702 import *
+from util_0704 import *
 
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
@@ -46,7 +46,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         if epoch==2:
             avg_time =time.time() - start_time 
         if time.time() - start_time > 58-avg_time:
-            print(f"{epoch}time out")
+            print(f"{epoch} time out")
             break
         bundles, result_rider_availables, cost = get_init_bundle_4_order_bundle_prefered_with_reassigning_riders(
             K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3)
