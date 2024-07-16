@@ -31,16 +31,15 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     min_init_cost_rider_availables = []
     
     weight1, weight2, weight3 = 1, -1, 1
-    lr = 0.7
+    lr = 0.4
     momentum = 0.9
     prev_update1, prev_update2, prev_update3 = 0, 0, 0
     bias = 0.04
     # 각 weight의 비율을 다르게 설정
-    rate1 = 1
-    rate2 = 0.7
+    rate1 = 0.7
+    rate2 = 1
     rate3 = 0.5
     epoch=0
-    avg_time=0
     while True:
         epoch+=1
         if epoch==2:
