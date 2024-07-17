@@ -54,7 +54,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         
         if time.time() - start_time > 5:
             break
-
         merge_iter_cnt += 1
         
         while pq:
@@ -85,7 +84,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                     new_bundles.append(all_bundles[i])
 
             all_bundles = deepcopy(new_bundles)
-            del new_bundles[:]
+            new_bundles = []
 
             ch = [0 for i in range(K)]
 
@@ -97,8 +96,11 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                     cur_weight = get_cos_based_weight(all_orders, all_bundles[i], all_bundles[j])
                     heapq.heappush(pq, (cur_weight, [i, j]))
 
-            if len(pq) / pre_pq_sz > 0.9: break
-            pre_pq_sz = len(pq)
+        if len(pq) / pre_pq_sz > 0.9: break
+        pre_pq_sz = len(pq)
+            
+        if merge_iter_cnt > 1 :
+            break
     
     print("merge iter cnt :", merge_iter_cnt)
     print("time taken to merge:", time.time() - start_time)
