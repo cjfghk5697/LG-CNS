@@ -581,13 +581,13 @@ def get_cos_theta(sc1, dc1, sc2, dc2):
     v1 = [i - j for i, j in zip(sc1, dc1)]
     v2 = [i - j for i, j in zip(sc2, dc2)]
 
-    cos_theta = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.sqrt(v1[0]**2 + v1[1]**2) * math.sqrt(v2[0]**2 + v2[1]**2))
+    cos_theta = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.sqrt(v1[0] * v1[0] + v1[1] * v1[1]) * 
+                                                   math.sqrt(v2[0] * v2[0] + v2[1] * v2[1]))
     return cos_theta
 
 
 def get_cos_based_weight(all_orders, bundle1, bundle2):
     weight = 0
-    # Wij = dist(i,j) * e^(-cos(i, j))
 
     shp_centroid1, shp_centroid2, dlv_centroid1, dlv_centroid2 = [0, 0], [0, 0], [0, 0], [0, 0]
 
@@ -608,14 +608,11 @@ def get_cos_based_weight(all_orders, bundle1, bundle2):
     shp_centroid2 = [t / len(bundle2.shop_seq) for t in shp_centroid2]
     dlv_centroid2 = [t / len(bundle2.shop_seq) for t in dlv_centroid2]
 
-    cos_theta = get_cos_theta(shp_centroid1, dlv_centroid1, shp_centroid2, dlv_centroid2)
-    dist = (math.sqrt((shp_centroid1[0] - shp_centroid2[0])**2 + (shp_centroid1[1] - shp_centroid2[1])**2) + 
+    #cos_theta = get_cos_theta(shp_centroid1, dlv_centroid1, shp_centroid2, dlv_centroid2)
+    cos_theta = 0
+    dist = (math.sqrt((shp_centroid1[0] - shp_centroid2[0])**2 + (shp_centroid1[1] - shp_centroid2[1])**2) * 
             math.sqrt((dlv_centroid1[0] - dlv_centroid2[0])**2 + (dlv_centroid1[1] - dlv_centroid2[1])**2))
-    weight = dist - 1 * math.exp(cos_theta)
-
-    # shp_dist = math.sqrt((shp_centroid1[0] - shp_centroid2[0])**2 + (shp_centroid1[1] - shp_centroid2[1])**2)
-    # dlv_dist = math.sqrt((dlv_centroid1[0] - dlv_centroid2[0])**2 + (dlv_centroid1[1] - dlv_centroid2[1])**2)
-    # weight = shp_dist + dlv_dist + 1 / math.exp(cos_theta)
+    weight = dist - 0 * cos_theta
 
     return weight
 
@@ -647,7 +644,7 @@ def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
                 cur_rider_cnt[new_rider.type] -= 1
     
     orders = cur_bundle.shop_seq
-    opt_dlv_time = 10000000000000
+    opt_dlv_time = 1000000000000000
     for shop_pem in permutations(orders):
         for dlv_pem in permutations(orders):
             feasibility_check, dlv_time = FA_test_route_feasibility(all_orders, cur_bundle.rider, shop_pem, dlv_pem)
