@@ -33,8 +33,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     #----------------- FA init -----------------#
 
-    firefiy_num = 5
+    firefiy_num = 4
     _lambda_ = 0.8
+    insertion_cnt_discount_factor = 0.8
+    mutation_cnt_discount_factor = 0.8
     fireflies = []
 
     rider_cnt = []
@@ -55,7 +57,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     iter_cnt = 0
     avg_time = 0
-
+    iter_start_time = time.time()
+    
     I = [0] * firefiy_num
     while True:
         #-- for debugging --#
@@ -76,12 +79,13 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                 cnt = random.randint(2, int(r_ij * math.pow(_lambda_, 9)))
 
                 if I[i] > I[j]:
-                    insertion(fireflies[j], cnt, rider_cnt[j], all_orders, dist_mat, K)
-                    mutation(fireflies[j], cnt, rider_cnt[j], all_orders, all_riders)
+                    insertion(fireflies[j], max(1, int(cnt / insertion_cnt_discount_factor)), rider_cnt[j], all_orders, dist_mat, K)
+                    #mutation(fireflies[j], max(1, int(cnt / mutation_cnt_discount_factor)), rider_cnt[j], all_orders, all_riders)
                 elif I[i] <= I[j]:
-                    insertion(fireflies[i], cnt, rider_cnt[i], all_orders, dist_mat, K)
-                    mutation(fireflies[i], cnt, rider_cnt[i], all_orders, all_riders)
-        avg_time = (time.time() - start_time) / iter_cnt
+                    insertion(fireflies[i], max(1, int(cnt / insertion_cnt_discount_factor)), rider_cnt[i], all_orders, dist_mat, K)
+                    #mutation(fireflies[j], max(1, int(cnt / mutation_cnt_discount_factor)), rider_cnt[j], all_orders, all_riders)
+            mutation(fireflies[i], max(1, int(cnt / mutation_cnt_discount_factor)), rider_cnt[i], all_orders, all_riders)
+        avg_time = (time.time() - iter_start_time) / iter_cnt
 
     #----------------- FA iter -----------------#
 
@@ -92,7 +96,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             I[i] = -1 * sum((bundle.cost for bundle in fireflies[i].bundles)) / K 
     best_idx = np.argmax(I)
     print(rider_cnt[best_idx])
-    all_bundles = fireflies[best_idx].bundles[:]
+    all_bundles = fireflies[best_idx].bundles
 
     # Solution is a list of bundle information
     solution = [
