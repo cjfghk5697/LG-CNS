@@ -574,5 +574,87 @@ def mutation(cur_firefly, cnt, cur_rider_cnt, all_orders, all_riders):
             if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
                 cur_rider_cnt[old_rider.type] += 1
                 cur_rider_cnt[new_rider.type] -= 1
+                
+
+def get_cos_theta(sc1, dc1, sc2, dc2):
+    cos_theta = 0
+    v1 = [i - j for i, j in zip(sc1, dc1)]
+    v2 = [i - j for i, j in zip(sc2, dc2)]
+
+    cos_theta = (v1[0] * v2[0] + v1[1] * v2[1]) / (math.sqrt(v1[0]**2 + v1[1]**2) * math.sqrt(v2[0]**2 + v2[1]**2))
+    return cos_theta
+
+
+def get_cos_based_weight(all_orders, bundle1, bundle2):
+    weight = 0
+    # Wij = dist(i,j) * e^(-cos(i, j))
+
+    shp_centroid1, shp_centroid2, dlv_centroid1, dlv_centroid2 = [0, 0], [0, 0], [0, 0], [0, 0]
+
+    for i in bundle1.shop_seq:
+        shp_centroid1[0] += all_orders[i].shop_lat
+        shp_centroid1[1] += all_orders[i].shop_lon
+        dlv_centroid1[0] += all_orders[i].dlv_lat
+        dlv_centroid1[1] += all_orders[i].dlv_lon
+
+    for i in bundle2.shop_seq:
+        shp_centroid2[0] += all_orders[i].shop_lat
+        shp_centroid2[1] += all_orders[i].shop_lon
+        dlv_centroid2[0] += all_orders[i].dlv_lat
+        dlv_centroid2[1] += all_orders[i].dlv_lon
+
+    shp_centroid1 = [t / len(bundle1.shop_seq) for t in shp_centroid1]
+    dlv_centroid1 = [t / len(bundle1.shop_seq) for t in dlv_centroid1]
+    shp_centroid2 = [t / len(bundle2.shop_seq) for t in shp_centroid2]
+    dlv_centroid2 = [t / len(bundle2.shop_seq) for t in dlv_centroid2]
+
+    cos_theta = get_cos_theta(shp_centroid1, dlv_centroid1, shp_centroid2, dlv_centroid2)
+    dist = (math.sqrt((shp_centroid1[0] - shp_centroid2[0])**2 + (shp_centroid1[1] - shp_centroid2[1])**2) + 
+            math.sqrt((dlv_centroid1[0] - dlv_centroid2[0])**2 + (dlv_centroid1[1] - dlv_centroid2[1])**2))
+    weight = dist - 1 * math.exp(cos_theta)
+
+    # shp_dist = math.sqrt((shp_centroid1[0] - shp_centroid2[0])**2 + (shp_centroid1[1] - shp_centroid2[1])**2)
+    # dlv_dist = math.sqrt((dlv_centroid1[0] - dlv_centroid2[0])**2 + (dlv_centroid1[1] - dlv_centroid2[1])**2)
+    # weight = shp_dist + dlv_dist + 1 / math.exp(cos_theta)
+
+    return weight
+
+
+def FA_test_route_feasibility(all_orders, rider, shop_seq, dlv_seq):
+    total_vol = get_total_volume(all_orders, shop_seq)
+    ret_dlv_time = 0
+    
+    if total_vol > rider.capa:
+        # Capacity overflow!
+        return -1, -1  # Capacity infeasibility
+
+    pickup_times, dlv_times = get_pd_times(all_orders, rider, shop_seq, dlv_seq)
+
+    for k, dlv_time in dlv_times.items():
+        if dlv_time > all_orders[k].deadline:
+            return -2, -1  # Deadline infeasibility
+        else:
+            ret_dlv_time = dlv_time
+    return 0, ret_dlv_time
+
+
+def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
+    old_rider = cur_bundle.rider
+    new_rider = FA_get_cheaper_available_riders(cur_rider_cnt, all_riders, old_rider)
+    if new_rider is not None:
+        if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
+                cur_rider_cnt[old_rider.type] += 1
+                cur_rider_cnt[new_rider.type] -= 1
+    
+    orders = cur_bundle.shop_seq
+    opt_dlv_time = 10000000000000
+    for shop_pem in permutations(orders):
+        for dlv_pem in permutations(orders):
+            feasibility_check, dlv_time = FA_test_route_feasibility(all_orders, cur_bundle.rider, shop_pem, dlv_pem)
+            if feasibility_check == 0:
+                if dlv_time < opt_dlv_time:
+                    cur_bundle.shop_seq = list(shop_pem)[:]
+                    cur_bundle.dlv_seq = list(dlv_pem)[:]
+                    cur_bundle.update_cost()
 
 #------------------------------------------------ added ------------------------------------------------#
