@@ -498,34 +498,23 @@ def get_total_distance(K, dist_mat, shop_seq, dlv_seq):
 # shop_seq의 순서로 pickup하고 dlv_seq 순서로 배달할 때 pickup과 delivery시간을 반환
 # Note: shop_seq 와 dlv_seq는 같은 주문 id들을 가져야 함. 즉, set(shop_seq) == seq(dlv_seq). (주문 id들의 순서는 바뀔 수 있음)
 def get_pd_times(all_orders, rider, shop_seq, dlv_seq):
-    
     K = len(all_orders)
-
     pickup_times = {}
-
     k = shop_seq[0]
-    t = all_orders[k].order_time + all_orders[k].cook_time # order time + order cook time
+    t = all_orders[k].order_time + all_orders[k].cook_time  # order time + order cook time
     pickup_times[k] = t
     for next_k in shop_seq[1:]:
-        t = max(t+rider.T[k, next_k], all_orders[next_k].ready_time) # max{travel time + service time, ready time}
+        t = max(t + rider.T[k, next_k] + rider.service_time, all_orders[next_k].ready_time)  # max{travel time + service time, ready time}
         pickup_times[next_k] = t
-                
         k = next_k
-
     dlv_times = {}
-
     k = dlv_seq[0]
-    t += rider.T[shop_seq[-1], k + K]
-
+    t += rider.service_time
     dlv_times[k] = t
-        
     for next_k in dlv_seq[1:]:
-        t += rider.T[k + K, next_k + K]
-
+        t += rider.T[k + K, next_k + K] + rider.service_time
         dlv_times[next_k] = t
-
         k = next_k
-
     return pickup_times, dlv_times
 
 # shop_seq의 순서로 pickup하고 dlv_seq 순서로 배달원 rider가 배달할 때 묶음주문 제약 만족 여부 테스트
