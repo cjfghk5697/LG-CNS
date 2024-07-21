@@ -1,13 +1,16 @@
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
-from util import *
+from util_0716 import *
 
 def solve_tsp(distance_matrix):
-    tsp_size = len(distance_matrix)
-    num_routes = 1
-    depot = 0
+    tsp_size = len(distance_matrix) #노드 수
+    num_routes = 4 #경로 수(TSP로 경로는 하나)
+    depot = 0 # 출발 지점
 
     if tsp_size > 0:
+        #Routing 모델 초기화
         routing = pywrapcp.RoutingModel(tsp_size, num_routes, depot)
+        
+        #탐색 매개변수 설정
         search_parameters = pywrapcp.DefaultRoutingSearchParameters()
         search_parameters.first_solution_strategy = (
             routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
@@ -42,20 +45,16 @@ def create_distance_matrix(K, dist_mat, shop_seq, dlv_seq):
     return distance_matrix, indices
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
-
     start_time = time.time()
 
     for r in all_riders:
-        r.T = np.round(dist_mat/r.speed + r.service_time)
-
-    # A solution is a list of bundles
-    solution = []
+        r.T = np.round(dist_mat / r.speed + r.service_time)
 
     # Initialize bundles with individual orders
     all_bundles = []
     car_rider = next(r for r in all_riders if r.type == 'CAR')
     for ord in all_orders:
-        new_bundle = Bundle(all_orders, car_rider, [ord.id], [ord.id], ord.volume, dist_mat[ord.id, ord.id+K])
+        new_bundle = Bundle(all_orders, car_rider, [ord.id], [ord.id], ord.volume, dist_mat[ord.id, ord.id + K])
         all_bundles.append(new_bundle)
         car_rider.available_number -= 1
 
@@ -63,9 +62,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     print(f'Best obj = {best_obj}')
 
     # Main algorithm loop
-    while time.time() - start_time < timelimit:
+    # while time.time() - start_time < timelimit:
+    for _ in range(30):
         bundle1, bundle2 = select_two_bundles(all_bundles)
-        new_bundle = try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2)
+        new_bundle = try_merging_bundles_by_dist_with_car_walk_prefered(K, dist_mat, all_orders, all_riders, bundle1, bundle2)
 
         if new_bundle is not None:
             all_bundles.remove(bundle1)
@@ -86,7 +86,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             new_rider = get_cheaper_available_riders(all_riders, bundle.rider)
             if new_rider is not None:
                 old_rider = bundle.rider
-                if try_bundle_rider_changing(all_orders, dist_mat, bundle, new_rider):
+                if try_bundle_rider_changing(all_orders, bundle, new_rider):
                     old_rider.available_number += 1
                     new_rider.available_number -= 1
 
