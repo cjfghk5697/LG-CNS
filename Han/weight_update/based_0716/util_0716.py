@@ -1,13 +1,14 @@
 
+import copy
 import json
-import numpy as np
-from itertools import permutations
+import pprint
 import random
 import time
-import pprint
-import copy
+from itertools import permutations
 
 import matplotlib.pyplot as plt
+import numpy as np
+
 
 def get_dist_by_coords(x1, y1, x2, y2):
     dist = ((x1 - x2) ** 2 + (y1 - y2) ** 2) ** 0.5 * 125950
@@ -260,7 +261,7 @@ def get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, ini
                 new_all_bundles.append(new_bundle)
 
     result_bundles, result_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, 3, 'two', new_all_bundles, bundle_merging_function, default_get_dist_function, weights)
-
+    print(result_bundles)
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
     return result_bundles, result_availables, sum((bundle.cost for bundle in result_bundles)) / K
