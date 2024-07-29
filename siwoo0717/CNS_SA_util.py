@@ -646,13 +646,12 @@ def make_new_solution(car_rider, K, rider_cnt, cur_solution, all_riders, all_ord
         new_solution = deepcopy(cur_solution)
         new_rider_cnt = deepcopy(rider_cnt)
 
-        insertion(new_solution, int(math.log2(T) + 2), new_rider_cnt, all_orders, dist_mat, K)
-        if 0.6 < random.random():
-            mutation(new_solution, int(math.log2(T)), new_rider_cnt, all_orders, all_riders)
+        insertion(new_solution, max(1, int(math.log2(T) * 1.2)), new_rider_cnt, all_orders, dist_mat, K)
         if 0.8 < random.random():
-            rebundling(new_solution, int(math.log2(T) / 4), new_rider_cnt, all_orders, car_rider, dist_mat, K)
+            mutation(new_solution, max(1, int(math.log2(T))), new_rider_cnt, all_orders, all_riders)
+        if 0.9 < random.random():
+            rebundling(new_solution, max(1, int(math.log2(T) / 4)), new_rider_cnt, all_orders, car_rider, dist_mat, K)
         
         new_cost = sum(bundle.cost for bundle in new_solution) / K
         return new_solution, new_cost, new_rider_cnt
-
 #------------------------------------------------ added ------------------------------------------------#
