@@ -109,7 +109,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     
     #--------------------------------------------- SA init ---------------------------------------------#
   
-    T = 10000000
+    T = 100000000
     delta = 0.99
     T_final = 0.0001
     cur_solution = all_bundles
@@ -118,6 +118,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                     'WALK' : int(walk_rider.available_number),
                     'CAR' : int(car_rider.available_number)}
     SA_iter_cnt = 0
+    T_mulitiplier = 0.00001
     
     for bundle in all_bundles:
         if len(bundle.shop_seq) > 3:
@@ -143,9 +144,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         elif new_cost == cur_cost:
             continue
         elif new_cost > cur_cost:
-            p = math.exp(-(new_cost - cur_cost) / (T * (0.001 / K)))
+            p = math.exp(-(new_cost - cur_cost) / (T * T_mulitiplier))
             #print((new_cost - cur_cost) / T)
-            print(int(new_cost), int(cur_cost), int(T), -(new_cost - cur_cost) / (T * (0.001 / K)), p)
+            print(int(new_cost), int(cur_cost), int(T), -(new_cost - cur_cost) / (T * T_mulitiplier), p)
             if p > random.random():
                 print("changed")
                 cur_solution = new_solution
