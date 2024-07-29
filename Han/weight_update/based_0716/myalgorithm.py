@@ -89,6 +89,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             weights[1] += update2 + momentum * prev_update2
             weights[2] += update3 + momentum * prev_update3
             weights[3] += update4 + momentum * prev_update4
+            print(cost)
         else:
             update1 = lr * weights[0] * rate1
             update2 = lr * weights[1] * rate2

@@ -1,4 +1,3 @@
-
 import copy
 import json
 import math
@@ -41,7 +40,7 @@ def calculate_cluster_distance_matrix(cluster_orders):
     return cluster_Dist
 
 def get_clustered_bundle_4_order_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3):
-    n_clusters = len(ALL_RIDERS)  # 클러스터 수는 배달원 수와 같게 설정
+    n_clusters = len(ALL_RIDERS) * 4# 클러스터 수는 배달원 수와 같게 설정
     labels = perform_clustering(ALL_ORDERS, n_clusters)
     clusters = divide_orders_by_clusters(ALL_ORDERS, labels)
 
@@ -86,15 +85,15 @@ def get_clustered_bundle_4_order_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_
                     new_cluster_bundles.append(new_bundle)
 
         result_bundles, result_availables = kruskal_bundling(cluster_K, cluster_Dist, cluster_orders, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist, 3, 'two', new_cluster_bundles)
-        print(result_bundles)
+        # print(result_bundles)
         all_bundles.extend(result_bundles)
         total_cost += sum((bundle.cost for bundle in result_bundles))
         result_rider_availables = [rider.available_number for rider in ALL_RIDERS]
 
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
-    return all_bundles, result_rider_availables, total_cost / K
-
+    return all_bundles, result_rider_availables, total_cost /K
+ 
 
 
 def get_dist_by_coords(x1, y1, x2, y2, p=1.3):
@@ -270,7 +269,7 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
             new_bundle.rider.available_number -= 1
 
             union(rbn1, rbn2, new_bundle)
-
+    # print("bundle", bundle)
     parent = [find(v) for v in parent]
 
     result_bundles = [all_bundles[v] for v in set(parent)]
@@ -624,6 +623,7 @@ def try_merging_bundles_by_dist(K, dist_mat, all_orders, all_riders, bundle1, bu
             for shop_pem in permutations(merged_orders):
                 for dlv_pem in permutations(merged_orders):
                     feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
+                    # print("feasibility_check", feasibility_check)
                     if feasibility_check == 0: # feasible!
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
 
@@ -638,7 +638,8 @@ def try_merging_bundles_by_dist(K, dist_mat, all_orders, all_riders, bundle1, bu
 
     if min_total_dist != inf:
         return Bundle(all_orders, min_total_dist_rider, list(min_total_dist_shop_pen), list(min_total_dist_dlv_pen), bundle1.total_volume+bundle2.total_volume, min_total_dist)
-    else:     
+    else: 
+        # print("exit unfeasible case")    
         return None
 
 # 거리를 고려하여 배달원을 선정할 수 있게 변경
@@ -860,6 +861,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 infeasibility = f'A bundle information must be a list of rider type, shop_seq, and dlv_seq! ===> {bundle_info}'
                 break
 
+            print(infeasibility)
             rider_type = bundle_info[0]
             shop_seq = bundle_info[1]
             dlv_seq = bundle_info[2]
@@ -887,23 +889,19 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 if not isinstance(k, int) or k<0 or k>=K:
                     infeasibility = f'Pickup sequence has invalid order number: {k}'
                     break
-
             # Delivery sequence check
             if not isinstance(dlv_seq, list):
                 infeasibility = f'The third bundle infomation must be a list of deliveries! ===> {dlv_seq}'
                 break
-
             for k in dlv_seq:
                 if not isinstance(k, int) or k<0 or k>=K:
                     infeasibility = f'Delivery sequence has invalid order number: {k}'
                     break
-
             # Volume check
             total_volume = get_total_volume(all_orders, shop_seq)
             if total_volume > rider.capa:
                 infeasibility = f"Bundle's total volume exceeds the rider's capacity!: {total_volume} > {rider.capa}"
                 break
-            
             # Deadline chaeck
             pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
 
@@ -925,7 +923,8 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
             if r.available_number < used_riders[r.type]:
                 infeasibility = f'The number of used riders of type {r.type} exceeds the given available limit!'
                 break
-                
+
+        print(infeasibility)
         # Check deliveries
         for k in range(K):
             count = 0
@@ -940,6 +939,7 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 infeasibility = f'Order {k} is NOT assigned!'
                 break
 
+        print(infeasibility)
     else:
         infeasibility = 'Solution must be a list of bundle information!'
 
@@ -964,177 +964,4 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
 
 
     return checked_solution
-
-# 주어진 solution의 경로를 visualize
-def draw_route_solution(all_orders, solution=None):
-    
-    plt.subplots(figsize=(8, 8))
-    node_size = 5
-
-    shop_x = [order.shop_lon for order in all_orders]
-    shop_y = [order.shop_lat for order in all_orders]
-    plt.scatter(shop_x, shop_y, c='red', s=node_size, label='SHOPS')
-
-    dlv_x = [order.dlv_lon for order in all_orders]
-    dlv_y = [order.dlv_lat for order in all_orders]
-    plt.scatter(dlv_x, dlv_y, c='blue', s=node_size, label='DLVS')
-
-
-    if solution is not None:
-
-        rider_idx = {
-            'BIKE': 0,
-            'CAR': 0,
-            'WALK': 0
-        }
-
-        for bundle_info in solution['bundles']:
-            rider_type = bundle_info[0]
-            shop_seq = bundle_info[1]
-            dlv_seq = bundle_info[2]
-
-            rider_idx[rider_type] += 1
-
-            route_color = 'gray'
-            if rider_type == 'BIKE':
-                route_color = 'green'
-            elif rider_type == 'WALK':
-                route_color = 'orange'
-
-            route_x = []
-            route_y = []
-            for i in shop_seq:
-                route_x.append(all_orders[i].shop_lon)
-                route_y.append(all_orders[i].shop_lat)
-
-            for i in dlv_seq:
-                route_x.append(all_orders[i].dlv_lon)
-                route_y.append(all_orders[i].dlv_lat)
-
-            plt.plot(route_x, route_y, c=route_color, linewidth=0.5)
-
-    plt.legend()
-
-# 주어진 solution의 경로를 visualize + 지점별 숫자 텍스트 표시
-def draw_route_solution2(all_orders, solution=None):
-    
-    plt.subplots(figsize=(15, 15))
-    node_size = 5
-
-    shop_x = [order.shop_lon for order in all_orders]
-    shop_y = [order.shop_lat for order in all_orders]
-    plt.scatter(shop_x, shop_y, c='red', s=node_size, label='SHOPS')
-
-    delta = 0.4
-    for i in range(len(all_orders)):
-        x = shop_x[i]
-        y = shop_y[i]
-
-        plt.text(x, y, str(i + 1), fontsize=6)
-
-    # plt.text(all_orders[k].ready_time, y+y_delta/2, f'{all_orders[k].ready_time} ', ha='right', va='center', c='white', fontsize=6)
-
-    dlv_x = [order.dlv_lon for order in all_orders]
-    dlv_y = [order.dlv_lat for order in all_orders]
-    plt.scatter(dlv_x, dlv_y, c='blue', s=node_size, label='DLVS')
-
-    for i in range(len(all_orders)):
-        x = dlv_x[i]
-        y = dlv_y[i]
-
-        plt.text(x, y, str(i + 1), fontsize=6)
-
-    if solution is not None:
-
-        rider_idx = {
-            'BIKE': 0,
-            'CAR': 0,
-            'WALK': 0
-        }
-
-        for bundle_info in solution['bundles']:
-            rider_type = bundle_info[0]
-            shop_seq = bundle_info[1]
-            dlv_seq = bundle_info[2]
-
-            rider_idx[rider_type] += 1
-
-            route_color = 'gray'
-            if rider_type == 'BIKE':
-                route_color = 'green'
-            elif rider_type == 'WALK':
-                route_color = 'orange'
-
-            route_x = []
-            route_y = []
-            for i in shop_seq:
-                route_x.append(all_orders[i].shop_lon)
-                route_y.append(all_orders[i].shop_lat)
-
-            for i in dlv_seq:
-                route_x.append(all_orders[i].dlv_lon)
-                route_y.append(all_orders[i].dlv_lat)
-
-            plt.plot(route_x, route_y, c=route_color, linewidth=0.5)
-
-    plt.legend()
-
-# 주어진 soliution의 묶음 배송 방문 시간대를 visualize
-def draw_bundle_solution(all_orders, all_riders, dist_mat, solution):
-
-    plt.subplots(figsize=(6, len(solution['bundles'])))
-
-    x_max = max([ord.deadline for ord in all_orders])
-
-    bundle_gap = 0.3
-    y = 0.2
-
-    plt.yticks([])
-
-    for idx, bundle_info in enumerate(solution['bundles']):
-        rider_type = bundle_info[0]
-        shop_seq = bundle_info[1]
-        dlv_seq = bundle_info[2]
-
-        rider = None
-        for r in all_riders:
-            if r.type == rider_type:
-                rider = r
-
-        y_delta = 0.2
-
-        pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
-
-        total_volume = 0
-        for k in shop_seq:
-            total_volume += all_orders[k].volume # order volume
-            plt.hlines(y+y_delta/2, all_orders[k].ready_time, all_orders[k].deadline, colors='gray')
-            plt.vlines(all_orders[k].ready_time, y, y+y_delta, colors='gray')
-            plt.vlines(all_orders[k].deadline, y, y+y_delta, colors='gray')
-
-            if total_volume > rider.capa:
-                plt.scatter(pickup_times[k], y+y_delta/2, c='red', zorder=100, marker='^', edgecolors='red', linewidth=0.5)
-            else:
-                plt.scatter(pickup_times[k], y+y_delta/2, c='green', zorder=100)
-
-            if dlv_times[k] > all_orders[k].deadline:
-                plt.scatter(dlv_times[k], y+y_delta/2, c='red', zorder=100, marker='*', edgecolors='red', linewidth=0.5)
-            else:
-                plt.scatter(dlv_times[k], y+y_delta/2, c='orange', zorder=100)
-
-            plt.text(all_orders[k].ready_time, y+y_delta/2, f'{all_orders[k].ready_time} ', ha='right', va='center', c='white', fontsize=6)
-            plt.text(all_orders[k].deadline, y+y_delta/2, f' {all_orders[k].deadline}', ha='left', va='center', c='white', fontsize=6)
-
-            y += y_delta
-
-        dist = get_total_distance(len(all_orders), dist_mat, shop_seq, dlv_seq)
-        cost = rider.calculate_cost(dist)
-
-        plt.text(0, y+y_delta, f'{rider_type}: {shop_seq}-{dlv_seq}, tot_cost={cost}, tot_dist={dist}', ha='left', va='top', c='gray', fontsize=8)
-        y += bundle_gap
-        plt.hlines(y, 0, x_max, colors='gray', linestyles='dotted')
-        y += y_delta/2
-
-
-    plt.ylim(0, y)
     

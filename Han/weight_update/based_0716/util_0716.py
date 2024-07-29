@@ -197,7 +197,7 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, order_count_upper_limit, a
 
     result_bundles = [all_bundles[v] for v in set(parent)]
     rider_availables = [rider.available_number for rider in ALL_RIDERS]
-
+    print(len(result_bundles))
     return result_bundles, rider_availables
 
 # bundle_merging_function으로 합친 번들을 반환하는 함수를 사용 가능함
@@ -261,7 +261,6 @@ def get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, ini
                 new_all_bundles.append(new_bundle)
 
     result_bundles, result_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, 3, 'two', new_all_bundles, bundle_merging_function, default_get_dist_function, weights)
-    print(result_bundles)
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
     return result_bundles, result_availables, sum((bundle.cost for bundle in result_bundles)) / K
