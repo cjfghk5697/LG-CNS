@@ -32,6 +32,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         all_bundles.append(new_bundle)
         car_rider.available_number -= 1
 
+    hist = []
     #------------------------------------------ merge cos sim ------------------------------------------#
     
     pq = []
@@ -108,16 +109,15 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     
     #--------------------------------------------- SA init ---------------------------------------------#
   
-    T = 100000000
-    delta = 0.9
+    T = 10000000
+    delta = 0.99
     T_final = 0.0001
     cur_solution = all_bundles
     cur_cost = sum(bundle.cost for bundle in all_bundles) / K 
     rider_cnt = {'BIKE' : int(bike_rider.available_number), 
-                          'WALK' : int(walk_rider.available_number),
-                          'CAR' : int(car_rider.available_number)}
+                    'WALK' : int(walk_rider.available_number),
+                    'CAR' : int(car_rider.available_number)}
     SA_iter_cnt = 0
-    hist = []
     
     for bundle in all_bundles:
         if len(bundle.shop_seq) > 3:
@@ -134,7 +134,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         SA_iter_cnt += 1
         
         new_solution, new_cost, new_rider_cnt = make_new_solution(
-            K, rider_cnt, cur_solution, all_riders, all_orders, dist_mat, T)
+            car_rider, K, rider_cnt, cur_solution, all_riders, all_orders, dist_mat, T)
         
         if new_cost < cur_cost:
             cur_solution = new_solution
@@ -143,10 +143,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         elif new_cost == cur_cost:
             continue
         elif new_cost > cur_cost:
-            p = math.exp((new_cost - cur_cost) / T)
+            p = math.exp(-(new_cost - cur_cost) / (T * (0.001 / K)))
             #print((new_cost - cur_cost) / T)
-            print(new_cost, cur_cost, T, (new_cost - cur_cost) / T, p)
-            if p < random.random():
+            print(int(new_cost), int(cur_cost), int(T), -(new_cost - cur_cost) / (T * (0.001 / K)), p)
+            if p > random.random():
                 print("changed")
                 cur_solution = new_solution
                 cur_cost = new_cost
@@ -159,8 +159,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     print("SA iter cnt :", SA_iter_cnt)
     
     for bundle in all_bundles:
-        if len(bundle.shop_seq) > 3:
-            continue
+        # if len(bundle.shop_seq) > 3:
+        #     continue
         make_path_optimal(bundle, rider_cnt, all_orders, all_riders)  
         
     plt.plot(hist)
