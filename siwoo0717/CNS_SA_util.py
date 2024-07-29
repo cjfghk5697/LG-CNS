@@ -622,13 +622,6 @@ def SA_test_route_feasibility(all_orders, rider, shop_seq, dlv_seq):
 
 
 def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
-    old_rider = cur_bundle.rider
-    new_rider = SA_get_cheaper_available_riders(cur_rider_cnt, all_riders, old_rider)
-    if new_rider is not None:
-        if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
-                cur_rider_cnt[old_rider.type] += 1
-                cur_rider_cnt[new_rider.type] -= 1
-    
     orders = cur_bundle.shop_seq[:]
     opt_dlv_time = 1000000000000000
     for shop_pem in permutations(orders):
@@ -640,7 +633,14 @@ def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
                     cur_bundle.shop_seq = list(shop_pem)[:]
                     cur_bundle.dlv_seq = list(dlv_pem)[:]
                     cur_bundle.update_cost()
-                    
+    
+    old_rider = cur_bundle.rider
+    new_rider = SA_get_cheaper_available_riders(cur_rider_cnt, all_riders, old_rider)
+    if new_rider is not None:
+        if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
+                cur_rider_cnt[old_rider.type] += 1
+                cur_rider_cnt[new_rider.type] -= 1
+                               
 
 def make_new_solution(car_rider, K, rider_cnt, cur_solution, all_riders, all_orders, dist_mat, T):
         new_solution = deepcopy(cur_solution)
@@ -650,8 +650,9 @@ def make_new_solution(car_rider, K, rider_cnt, cur_solution, all_riders, all_ord
         if 0.8 < random.random():
             mutation(new_solution, max(1, int(math.log2(T))), new_rider_cnt, all_orders, all_riders)
         if 0.9 < random.random():
-            rebundling(new_solution, max(1, int(math.log2(T) / 4)), new_rider_cnt, all_orders, car_rider, dist_mat, K)
+            rebundling(new_solution, max(1, int(math.log2(T) / 5)), new_rider_cnt, all_orders, car_rider, dist_mat, K)
         
         new_cost = sum(bundle.cost for bundle in new_solution) / K
         return new_solution, new_cost, new_rider_cnt
+
 #------------------------------------------------ added ------------------------------------------------#
