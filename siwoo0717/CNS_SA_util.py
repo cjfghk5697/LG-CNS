@@ -587,6 +587,22 @@ def mutation(cur_solution, cnt, cur_rider_cnt, all_orders, all_riders):
                 cur_rider_cnt[new_rider.type] -= 1
                 
 
+def rebundling(cur_solution, cnt, cur_rider_cnt, all_orders, car_rider, dist_mat, K):
+    for _ in range(cnt):
+        cur_bundle = random.choice(cur_solution)
+        old_rider = cur_bundle.rider
+        cur_shp_seq = cur_bundle.shop_seq
+        
+        for i in cur_shp_seq:
+            new_bundle = Bundle(
+                all_orders, car_rider, [i], [i], all_orders[i].volume, dist_mat[i, i+K])
+            cur_solution.append(new_bundle)
+            cur_rider_cnt[car_rider.type] -= 1
+        
+        cur_solution.remove(cur_bundle)
+        cur_rider_cnt[old_rider.type] += 1
+
+
 def SA_test_route_feasibility(all_orders, rider, shop_seq, dlv_seq):
     total_vol = get_total_volume(all_orders, shop_seq)
     ret_dlv_time = 0
@@ -613,7 +629,7 @@ def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
                 cur_rider_cnt[old_rider.type] += 1
                 cur_rider_cnt[new_rider.type] -= 1
     
-    orders = cur_bundle.shop_seq
+    orders = cur_bundle.shop_seq[:]
     opt_dlv_time = 1000000000000000
     for shop_pem in permutations(orders):
         for dlv_pem in permutations(orders):
@@ -626,12 +642,15 @@ def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
                     cur_bundle.update_cost()
                     
 
-def make_new_solution(K, rider_cnt, cur_solution, all_riders, all_orders, dist_mat, T):
+def make_new_solution(car_rider, K, rider_cnt, cur_solution, all_riders, all_orders, dist_mat, T):
         new_solution = deepcopy(cur_solution)
         new_rider_cnt = deepcopy(rider_cnt)
 
-        insertion(new_solution, int(math.log2(T) * 1.5 + 2), new_rider_cnt, all_orders, dist_mat, K)
-        mutation(new_solution, int(math.log2(T) / 4), new_rider_cnt, all_orders, all_riders)
+        insertion(new_solution, int(math.log2(T) + 2), new_rider_cnt, all_orders, dist_mat, K)
+        if 0.6 < random.random():
+            mutation(new_solution, int(math.log2(T)), new_rider_cnt, all_orders, all_riders)
+        if 0.8 < random.random():
+            rebundling(new_solution, int(math.log2(T) / 4), new_rider_cnt, all_orders, car_rider, dist_mat, K)
         
         new_cost = sum(bundle.cost for bundle in new_solution) / K
         return new_solution, new_cost, new_rider_cnt
