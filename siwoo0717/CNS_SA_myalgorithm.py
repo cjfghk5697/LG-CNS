@@ -31,8 +31,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         new_bundle = Bundle(all_orders, car_rider, [ord.id], [ord.id], ord.volume, dist_mat[ord.id, ord.id+K])
         all_bundles.append(new_bundle)
         car_rider.available_number -= 1
-
-    hist = []
+        
     #------------------------------------------ merge cos sim ------------------------------------------#
     
     pq = []
@@ -107,12 +106,14 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     
     #------------------------------------------ merge cos sim ------------------------------------------#
     
-    #--------------------------------------------- SA init ---------------------------------------------#
-  
+#--------------------------------------------- SA init ---------------------------------------------#
+    print(sum(bundle.cost for bundle in all_bundles) / K )
+    
+    hist = []
     T = 100000000
     delta = 0.995
     T_final = 0.0001
-    cur_solution = all_bundles
+    cur_solution = deepcopy(all_bundles)
     cur_cost = sum(bundle.cost for bundle in all_bundles) / K 
     SA_iter_cnt = 0
     T_mulitiplier = 0.0000001
@@ -140,10 +141,11 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         elif new_cost == cur_cost:
             continue
         elif new_cost > cur_cost:
-            p = math.exp(-(new_cost - cur_cost)/ (T * T_mulitiplier))
-            #print((new_cost - cur_cost) / T)
-            print(int(new_cost), int(cur_cost), int(T), T * T_mulitiplier,
-                  -(new_cost - cur_cost) / (T * T_mulitiplier), p)
+            p_discount_factor = SA_iter_cnt / 2
+            p = math.exp(-(new_cost - cur_cost) / (T * T_mulitiplier / p_discount_factor))
+
+            print(int(new_cost), int(cur_cost), int(T), 
+                  -(new_cost - cur_cost) / (T * T_mulitiplier / p_discount_factor), p)
             if p > random.random():
                 print("changed")
                 cur_solution = new_solution
@@ -151,26 +153,27 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         
         T *= delta
         hist.append(cur_cost)
-    
-    all_bundles = cur_solution
+
     print("SA iter cnt :", SA_iter_cnt)
-    
-    for bundle in all_bundles:
+
+    for bundle in cur_solution:
         # if len(bundle.shop_seq) > 3:
         #     continue
-        make_path_optimal(bundle, all_orders, all_riders)  
-        
+        make_path_optimal(K, dist_mat, bundle, all_orders, all_riders)  
+
+    print(sum(bundle.cost for bundle in cur_solution) / K )
+    
     plt.plot(hist)
     #--------------------------------------------- SA iter ---------------------------------------------#
 
-    # Solution is a list of bundle information
-    solution = [
-        # rider type, shop_seq, dlv_seq
-        [bundle.rider.type, bundle.shop_seq, bundle.dlv_seq]
-        for bundle in all_bundles
-    ]
 
     #------------- End of custom algorithm code--------------#
-    
+
+    solution = [
+            # rider type, shop_seq, dlv_seq
+            [bundle.rider.type, bundle.shop_seq, bundle.dlv_seq]
+            for bundle in cur_solution
+    ]
+
     return solution
     
