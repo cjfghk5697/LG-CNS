@@ -114,6 +114,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         #     continue
         make_path_optimal(K, dist_mat, bundle, all_orders, all_riders)  
 
+    print(sum(bundle.cost for bundle in final_solution) / K)
+    final_availables = [rider.available_number for rider in all_riders]
+    reassign_riders(K, ALL_ORDERS, ALL_RIDERS, DIST, final_availables, final_solution)
+    
     plt.plot(hist)
     #--------------------------------------------- SA iter ---------------------------------------------#
 
