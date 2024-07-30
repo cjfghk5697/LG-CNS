@@ -531,7 +531,7 @@ def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
         if rider.available_number <= 0: 
             continue
         # We skip the test if there are too many orders
-        if total_volume <= rider.capa and len(merged_orders) <= 5:
+        if total_volume <= rider.capa and len(merged_orders) <= 4:
             for shop_pem in permutations(merged_orders):
                 for dlv_pem in permutations(merged_orders):
                     feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
@@ -554,6 +554,8 @@ def insertion(cur_solution, cnt, all_orders, dist_mat, K):
         new_bundle = SA_try_merging_bundles(K, dist_mat, all_orders, bundle1=tmp_bundle, bundle2=nxt_bundle) 
 
         if new_bundle is not None and new_bundle.rider.available_number > 0:
+            new_bundle.update_cost()
+            
             if len(cur_bundle.shop_seq) == 1:
                 cur_bundle.rider.available_number += 1
                 cur_solution.remove(cur_bundle)
@@ -649,17 +651,18 @@ def SA_test_route_feasibility(all_orders, rider, shop_seq, dlv_seq):
     return 0, ret_dlv_time
 
 
-def make_path_optimal(cur_bundle, all_orders, all_riders):
-    orders = cur_bundle.shop_seq[:]
-    opt_dlv_time = 1000000000000000
+def make_path_optimal(K, dist_mat, cur_bundle, all_orders, all_riders):
+    orders = deepcopy(cur_bundle.shop_seq)
+    opt_cost = 1000000000000000
     for shop_pem in permutations(orders):
         for dlv_pem in permutations(orders):
             feasibility_check, dlv_time = SA_test_route_feasibility(all_orders, cur_bundle.rider, shop_pem, dlv_pem)
             if feasibility_check == 0:
-                if dlv_time < opt_dlv_time:
-                    opt_dlv_time = dlv_time
-                    cur_bundle.shop_seq = list(shop_pem)[:]
-                    cur_bundle.dlv_seq = list(dlv_pem)[:]
+                cur_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
+                if cur_dist < opt_cost:
+                    opt_cost = cur_dist
+                    cur_bundle.shop_seq = deepcopy(list(shop_pem))
+                    cur_bundle.dlv_seq = deepcopy(list(dlv_pem))
                     cur_bundle.update_cost()
     
     old_rider = cur_bundle.rider
