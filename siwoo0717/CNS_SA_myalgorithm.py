@@ -114,9 +114,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     T_final = 0.0001
     cur_solution = all_bundles
     cur_cost = sum(bundle.cost for bundle in all_bundles) / K 
-    rider_cnt = {'BIKE' : int(bike_rider.available_number), 
-                    'WALK' : int(walk_rider.available_number),
-                    'CAR' : int(car_rider.available_number)}
     SA_iter_cnt = 0
     T_mulitiplier = 0.0000001
 
@@ -134,13 +131,12 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             break    
         SA_iter_cnt += 1
         
-        new_solution, new_cost, new_rider_cnt = make_new_solution(
-            car_rider, K, rider_cnt, cur_solution, all_riders, all_orders, dist_mat, T)
+        new_solution, new_cost = make_new_solution(
+            car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T)
         
         if new_cost < cur_cost:
             cur_solution = new_solution
             cur_cost = new_cost
-            rider_cnt = new_rider_cnt
         elif new_cost == cur_cost:
             continue
         elif new_cost > cur_cost:
@@ -152,7 +148,6 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
                 print("changed")
                 cur_solution = new_solution
                 cur_cost = new_cost
-                rider_cnt = new_rider_cnt
         
         T *= delta
         hist.append(cur_cost)
@@ -163,7 +158,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     for bundle in all_bundles:
         # if len(bundle.shop_seq) > 3:
         #     continue
-        make_path_optimal(bundle, rider_cnt, all_orders, all_riders)  
+        make_path_optimal(bundle, all_orders, all_riders)  
         
     plt.plot(hist)
     #--------------------------------------------- SA iter ---------------------------------------------#
