@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import heapq
 import math
 from copy import deepcopy
+from functools import cmp_to_key
 #---------------- added ----------------#
 
 # Change history
@@ -173,7 +174,9 @@ def try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
                         return Bundle(all_orders, rider, list(shop_pem), list(dlv_pem),
                                       bundle1.total_volume + bundle2.total_volume, total_dist)
-
+        #     print("time")
+        # else:
+        #     print("cap or volume")
     return None
 
 
@@ -515,7 +518,7 @@ def get_cos_based_weight(all_orders, bundle1, bundle2):
     return weight
 
 
-def SA_try_merging_bundles(rider_cnt, K, dist_mat, all_orders, bundle1, bundle2):
+def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
     merged_orders = bundle1.shop_seq + bundle2.shop_seq
     total_volume = get_total_volume(all_orders, merged_orders)
 
@@ -525,7 +528,7 @@ def SA_try_merging_bundles(rider_cnt, K, dist_mat, all_orders, bundle1, bundle2)
         riders = [bundle1.rider, bundle2.rider]
 
     for rider in riders:
-        if rider_cnt[rider.type] <= 0: 
+        if rider.available_number <= 0: 
             continue
         # We skip the test if there are too many orders
         if total_volume <= rider.capa and len(merged_orders) <= 5:
@@ -536,25 +539,25 @@ def SA_try_merging_bundles(rider_cnt, K, dist_mat, all_orders, bundle1, bundle2)
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
                         return Bundle(all_orders, rider, list(shop_pem), list(dlv_pem),
                                       bundle1.total_volume + bundle2.total_volume, total_dist)
-
+        #     print("time")
+        # else:
+        #     print("cap or volume")
     return None
 
 
-def insertion(cur_solution, cnt, rider_cnt, all_orders, dist_mat, K):
-    org_bundles = cur_solution
+def insertion(cur_solution, cnt, all_orders, dist_mat, K):
     for _ in range(cnt):
-
-        cur_bundle, nxt_bundle = random.sample(org_bundles, 2)
+        cur_bundle, nxt_bundle = random.sample(cur_solution, 2)
         node = random.choice(cur_bundle.shop_seq)
-        tmp_bundle = Bundle(all_orders, cur_bundle.rider, [node], [node], 
+        tmp_bundle = Bundle(all_orders, nxt_bundle.rider, [node], [node], 
                             all_orders[node].volume, dist_mat[node, node + K])
-        new_bundle = SA_try_merging_bundles(rider_cnt, K, dist_mat, all_orders, bundle1=tmp_bundle, bundle2=nxt_bundle) 
+        new_bundle = SA_try_merging_bundles(K, dist_mat, all_orders, bundle1=tmp_bundle, bundle2=nxt_bundle) 
 
-        if new_bundle is not None:
+        if new_bundle is not None and new_bundle.rider.available_number > 0:
             if len(cur_bundle.shop_seq) == 1:
-                org_bundles.remove(cur_bundle)
-                rider_cnt[cur_bundle.rider.type] += 1
-
+                cur_bundle.rider.available_number += 1
+                cur_solution.remove(cur_bundle)
+                
             else:
                 cur_bundle.shop_seq.remove(node)
                 cur_bundle.dlv_seq.remove(node)
@@ -562,45 +565,70 @@ def insertion(cur_solution, cnt, rider_cnt, all_orders, dist_mat, K):
                 cur_bundle.total_dist = get_total_distance(K, dist_mat, cur_bundle.shop_seq, cur_bundle.dlv_seq)
                 cur_bundle.update_cost()
 
-            rider_cnt[nxt_bundle.rider.type] += 1
-            rider_cnt[new_bundle.rider.type] -= 1
-            org_bundles.remove(nxt_bundle)
-            org_bundles.append(new_bundle)
+            nxt_bundle.rider.available_number += 1
+            new_bundle.rider.available_number -= 1
+            cur_solution.remove(nxt_bundle)
+            cur_solution.append(new_bundle)
 
 
-def SA_get_cheaper_available_riders(cur_rider_cnt, all_riders, rider):
+def SA_get_cheaper_available_riders(all_riders, rider):
     for r in all_riders:
-        if cur_rider_cnt[r.type] > 0 and r.var_cost < rider.var_cost:
+        if r.available_number > 0 and r.var_cost < rider.var_cost:
             return r
 
     return None
 
 
-def mutation(cur_solution, cnt, cur_rider_cnt, all_orders, all_riders):
+def mutation(cur_solution, cnt, all_orders, all_riders):
     for _ in range(cnt):
         cur_bundle = random.choice(cur_solution)
         old_rider = cur_bundle.rider
-        new_rider = SA_get_cheaper_available_riders(cur_rider_cnt, all_riders, old_rider)
+        new_rider = SA_get_cheaper_available_riders(all_riders, old_rider)
+        
         if new_rider is not None:
             if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
-                cur_rider_cnt[old_rider.type] += 1
-                cur_rider_cnt[new_rider.type] -= 1
-                
+                old_rider.available_number += 1
+                new_rider.available_number -= 1
 
-def rebundling(cur_solution, cnt, cur_rider_cnt, all_orders, car_rider, dist_mat, K):
-    for _ in range(cnt):
-        cur_bundle = random.choice(cur_solution)
-        old_rider = cur_bundle.rider
+
+def sort_by_bundle_cost(x, y):
+    return y.cost - x.cost
+    
+
+# def rebundling(cur_solution, cnt, all_orders, car_rider, dist_mat, K):
+#     for _ in range(cnt):
+#         cur_bundle = random.choice(cur_solution)
+#         old_rider = cur_bundle.rider
+#         cur_shp_seq = cur_bundle.shop_seq
+        
+#         for i in cur_shp_seq:
+#             new_bundle = Bundle(
+#                 all_orders, car_rider, [i], [i], all_orders[i].volume, dist_mat[i, i+K])
+#             cur_solution.append(new_bundle)
+#             car_rider.available_number -= 1
+        
+#         cur_solution.remove(cur_bundle)
+#         old_rider.available_number += 1
+        
+        
+def rebundling(cur_solution, cnt, all_orders, car_rider, dist_mat, K):
+    cur_solution = sorted(cur_solution, key=cmp_to_key(sort_by_bundle_cost))
+    removed_bundles = []
+    
+    for i in range(cnt):
+        cur_bundle = cur_solution[i]
+        cur_bundle.rider.available_number += 1
+        removed_bundles.append(cur_bundle)
+        cur_solution.remove(cur_bundle)
+    
+    for cur_bundle in removed_bundles:
         cur_shp_seq = cur_bundle.shop_seq
         
-        for i in cur_shp_seq:
+        for cur_shp in cur_shp_seq:
             new_bundle = Bundle(
-                all_orders, car_rider, [i], [i], all_orders[i].volume, dist_mat[i, i+K])
+                all_orders, car_rider, [cur_shp], [cur_shp], all_orders[cur_shp].volume, dist_mat[cur_shp, cur_shp+K])
             cur_solution.append(new_bundle)
-            cur_rider_cnt[car_rider.type] -= 1
-        
-        cur_solution.remove(cur_bundle)
-        cur_rider_cnt[old_rider.type] += 1
+            car_rider.available_number -= 1
 
 
 def SA_test_route_feasibility(all_orders, rider, shop_seq, dlv_seq):
@@ -621,7 +649,7 @@ def SA_test_route_feasibility(all_orders, rider, shop_seq, dlv_seq):
     return 0, ret_dlv_time
 
 
-def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
+def make_path_optimal(cur_bundle, all_orders, all_riders):
     orders = cur_bundle.shop_seq[:]
     opt_dlv_time = 1000000000000000
     for shop_pem in permutations(orders):
@@ -635,24 +663,23 @@ def make_path_optimal(cur_bundle, cur_rider_cnt, all_orders, all_riders):
                     cur_bundle.update_cost()
     
     old_rider = cur_bundle.rider
-    new_rider = SA_get_cheaper_available_riders(cur_rider_cnt, all_riders, old_rider)
+    new_rider = SA_get_cheaper_available_riders(all_riders, old_rider)
     if new_rider is not None:
         if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
-                cur_rider_cnt[old_rider.type] += 1
-                cur_rider_cnt[new_rider.type] -= 1
+                old_rider.available_number += 1
+                new_rider.available_number -= 1
                                
 
-def make_new_solution(car_rider, K, rider_cnt, cur_solution, all_riders, all_orders, dist_mat, T):
+def make_new_solution(car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T):
         new_solution = deepcopy(cur_solution)
-        new_rider_cnt = deepcopy(rider_cnt)
 
-        insertion(new_solution, max(1, int(math.log2(T) * 1.2)), new_rider_cnt, all_orders, dist_mat, K)
+        insertion(new_solution, max(1, int(math.log2(T) * 1.2)), all_orders, dist_mat, K)
         if 0.8 < random.random():
-            mutation(new_solution, max(1, int(math.log2(T))), new_rider_cnt, all_orders, all_riders)
+            mutation(new_solution, max(1, int(math.log2(T))), all_orders, all_riders)
         if 0.9 < random.random():
-            rebundling(new_solution, max(1, int(math.log2(T) / 5)), new_rider_cnt, all_orders, car_rider, dist_mat, K)
+            rebundling(new_solution, max(1, int(math.log2(T) / 4)), all_orders, car_rider, dist_mat, K)
         
         new_cost = sum(bundle.cost for bundle in new_solution) / K
-        return new_solution, new_cost, new_rider_cnt
+        return new_solution, new_cost
 
 #------------------------------------------------ added ------------------------------------------------#
