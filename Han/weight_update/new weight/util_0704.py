@@ -1,3 +1,4 @@
+
 import copy
 import json
 import math
@@ -8,152 +9,7 @@ from itertools import permutations
 
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.cluster import KMeans
 
-
-def perform_clustering_with_time_balance(all_orders, n_clusters, n_time_slots):
-    # Step 1: 시간대를 균등하게 분배
-    order_times = np.array([order.order_time for order in all_orders])
-    time_slots = np.linspace(order_times.min(), order_times.max(), n_time_slots + 1)
-    time_slot_labels = np.digitize(order_times, time_slots) - 1
-
-    # Ensure labels are within the range
-    time_slot_labels[time_slot_labels >= n_time_slots] = n_time_slots - 1
-
-    balanced_orders = [[] for _ in range(n_time_slots)]
-    for order, slot in zip(all_orders, time_slot_labels):
-        balanced_orders[slot].append(order)
-    
-    # 각 시간대에서 균등하게 주문을 샘플링하여 하나의 리스트로 만듦
-    orders_for_clustering = []
-    for slot_orders in balanced_orders:
-        orders_for_clustering.extend(slot_orders)
-    
-    # Step 2: 위치 기반 클러스터링
-    order_coords = np.array([(order.shop_lat, order.shop_lon) for order in orders_for_clustering])
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(order_coords)
-    labels = kmeans.labels_
-
-    # Step 3: 클러스터 내 시간대 균형 확인 및 조정
-    clusters = divide_orders_by_clusters(orders_for_clustering, labels)
-    for cluster_id, cluster_orders in clusters.items():
-        cluster_times = [order.order_time for order in cluster_orders]
-        if not is_time_balanced(cluster_times, n_time_slots):
-            clusters = rebalance_clusters(clusters, cluster_id, n_time_slots)
-    
-    return clusters
-
-def is_time_balanced(cluster_times, n_time_slots):
-    # 각 시간대의 주문 개수가 균등한지 확인
-    time_slots = np.linspace(min(cluster_times), max(cluster_times), n_time_slots + 1)
-    time_slot_counts = np.histogram(cluster_times, bins=time_slots)[0]
-    return np.std(time_slot_counts) < np.mean(time_slot_counts) * 0.2  # 표준편차가 평균의 20% 미만이면 균형
-
-def rebalance_clusters(clusters, unbalanced_cluster_id, n_time_slots):
-    # 시간대 균형을 맞추기 위해 클러스터 내 주문을 재배치
-    # 이 부분은 구체적인 로직을 구현해야 함
-    # 예를 들어, unbalanced_cluster_id의 주문을 다른 클러스터로 이동
-    unbalanced_cluster = clusters[unbalanced_cluster_id]
-    unbalanced_times = [order.order_time for order in unbalanced_cluster]
-    
-    time_slots = np.linspace(min(unbalanced_times), max(unbalanced_times), n_time_slots + 1)
-    time_slot_counts = np.histogram(unbalanced_times, bins=time_slots)[0]
-
-    while np.std(time_slot_counts) >= np.mean(time_slot_counts) * 0.2:
-        max_slot_index = np.argmax(time_slot_counts)
-        min_slot_index = np.argmin(time_slot_counts)
-        
-        max_slot_orders = [order for order in unbalanced_cluster if time_slots[max_slot_index] <= order.order_time < time_slots[max_slot_index + 1]]
-        if not max_slot_orders:
-            break
-
-        order_to_move = max_slot_orders[0]
-        unbalanced_cluster.remove(order_to_move)
-
-        new_cluster_id = find_closest_cluster(order_to_move, clusters, unbalanced_cluster_id)
-        clusters[new_cluster_id].append(order_to_move)
-
-        unbalanced_times = [order.order_time for order in unbalanced_cluster]
-        time_slot_counts = np.histogram(unbalanced_times, bins=time_slots)[0]
-
-    return clusters
-
-def find_closest_cluster(order, clusters, exclude_cluster_id):
-    min_distance = float('inf')
-    closest_cluster_id = None
-    for cluster_id, cluster_orders in clusters.items():
-        if cluster_id == exclude_cluster_id:
-            continue
-        for cluster_order in cluster_orders:
-            distance = np.linalg.norm(np.array([order.shop_lat, order.shop_lon]) - np.array([cluster_order.shop_lat, cluster_order.shop_lon]))
-            if distance < min_distance:
-                min_distance = distance
-                closest_cluster_id = cluster_id
-    return closest_cluster_id
-
-def divide_orders_by_clusters(all_orders, labels):
-    clusters = {}
-    for label, order in zip(labels, all_orders):
-        if label not in clusters:
-            clusters[label] = []
-        clusters[label].append(order)
-    return clusters
-
-# 시각화 함수 추가
-def visualize_clusters(clusters):
-    colors = ['r', 'g', 'b', 'c', 'm', 'y', 'k']
-    for cluster_id, cluster_orders in clusters.items():
-        latitudes = [order.shop_lat for order in cluster_orders]
-        longitudes = [order.shop_lon for order in cluster_orders]
-        plt.scatter(longitudes, latitudes, c=colors[cluster_id % len(colors)], label=f'Cluster {cluster_id}')
-    
-    plt.xlabel('Longitude')
-    plt.ylabel('Latitude')
-    plt.title('Order Clusters')
-    plt.legend()
-    plt.show()
-
-# 이후 KMeans 클러스터링 결과를 이용한 기존 로직과 결합합니다.
-
-def get_clustered_bundle_4_order_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3):
-    n_clusters = 2  # 클러스터 수는 배달원 수와 같게 설정
-    n_time_slots = 8  # 시간 슬롯의 수, 필요에 따라 조정 가능
-    clusters = perform_clustering_with_time_balance(ALL_ORDERS, n_clusters, n_time_slots)
-
-    # visualize_clusters(clusters)  # 클러스터 시각화
-
-    all_bundles = []
-    total_cost = 0
-    result_rider_availables = [0] * len(ALL_RIDERS)
-    assigned_orders = set()
-
-    for cluster_id, cluster_orders in clusters.items():
-        cluster_K = len(cluster_orders)
-
-        for rider_i in range(3):
-            ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
-
-        for r in ALL_RIDERS:
-            r.T = np.round(DIST / r.speed + r.service_time).astype(int)
-
-        car_rider = [rider for rider in ALL_RIDERS if rider.type == 'CAR'][0]
-
-        cluster_bundles = []
-        for idx, ord in enumerate(cluster_orders):
-            new_bundle = Bundle(cluster_orders, car_rider, [idx], [idx], ord.volume, DIST[idx, idx + cluster_K])
-            car_rider.available_number -= 1
-            cluster_bundles.append(new_bundle)
-            assigned_orders.add(ord.id)
-
-        result_bundles, _ = kruskal_bundling(cluster_K, DIST, cluster_orders, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist, 2, 'two_seq', cluster_bundles)
-
-        all_bundles.extend(result_bundles)
-        total_cost += sum(bundle.cost for bundle in result_bundles)
-        result_rider_availables = [rider.available_number for rider in ALL_RIDERS]
-        print(result_bundles)
-    for rider_i in range(3):
-        ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
-    return all_bundles, result_rider_availables, total_cost / K
 
 def get_dist_by_coords(x1, y1, x2, y2, p=1.3):
     distance = ((abs(x1 - x2) ** p) + (abs(y1 - y2) ** p)) ** (1/p) * 125950
@@ -221,7 +77,6 @@ class Bundle:
         return f'Bundle(all_orders, {self.rider.type}, {self.shop_seq}, {self.dlv_seq}, {self.total_volume}, {self.feasible})'
 
 # 크루스칼 알고리즘 방식을 활용하여 번들별 초기 할당을 하는 함수
-# kruskal_bundling 함수 수정: 클러스터 내 주문을 처리하도록 변경
 def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, bundle_merging_function, order_count_upper_limit, avg_method, all_bundles):
     def find(v):
         while v != parent[v]:
@@ -328,7 +183,7 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
             new_bundle.rider.available_number -= 1
 
             union(rbn1, rbn2, new_bundle)
-    # print("bundle", bundle)
+
     parent = [find(v) for v in parent]
 
     result_bundles = [all_bundles[v] for v in set(parent)]
@@ -336,32 +191,6 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
 
     return result_bundles, rider_availables
 
-# 클러스터링과 Kruskal 알고리즘을 결합한 번들링 함수
-def get_clustered_bundles(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, bundle_merging_function, order_count_upper_limit=3):
-    # 클러스터링 수행
-    n_clusters = len(ALL_RIDERS)  # 클러스터 수는 배달원 수와 같게 설정
-    labels = perform_clustering(ALL_ORDERS, n_clusters)
-    clusters = divide_orders_by_clusters(ALL_ORDERS, labels)
-
-    all_bundles = []
-
-    # 각 클러스터별로 번들링 수행
-    for cluster_orders in clusters.values():
-        cluster_K = len(cluster_orders)
-
-        # 초기 번들 생성
-        initial_bundles = []
-        for ord in cluster_orders:
-            new_bundle = Bundle(cluster_orders, ALL_RIDERS[0], [ord.id], [ord.id], ord.volume, cluster_Dist[ord.id, ord.id + cluster_K])
-            initial_bundles.append(new_bundle)
-
-        # Kruskal 알고리즘 적용
-        bundles, rider_availables = kruskal_bundling(
-            cluster_K, cluster_Dist, cluster_orders, ALL_RIDERS, weight1, weight2, 1, bundle_merging_function, order_count_upper_limit, 'two_seq', initial_bundles)
-
-        all_bundles.extend(bundles)
-
-    return all_bundles
 # bundle_merging_function으로 합친 번들을 반환하는 함수를 사용 가능함
 def get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, bundle_merging_function, order_count_upper_limit=3):
     for rider_i in range(3):
@@ -384,7 +213,6 @@ def get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, w
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
 
     return all_bundles, rider_abailables, sum((bundle.cost for bundle in all_bundles)) / K
-
 
 # 2 -> 4 -> 3 형태 위주로 try_merging_bundles_by_dist를 사용하여 번들을 차례대로 생성하는 함수
 def get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3):
@@ -681,7 +509,6 @@ def try_merging_bundles_by_dist(K, dist_mat, all_orders, all_riders, bundle1, bu
             for shop_pem in permutations(merged_orders):
                 for dlv_pem in permutations(merged_orders):
                     feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
-                    # print("feasibility_check", feasibility_check)
                     if feasibility_check == 0: # feasible!
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
 
@@ -696,8 +523,7 @@ def try_merging_bundles_by_dist(K, dist_mat, all_orders, all_riders, bundle1, bu
 
     if min_total_dist != inf:
         return Bundle(all_orders, min_total_dist_rider, list(min_total_dist_shop_pen), list(min_total_dist_dlv_pen), bundle1.total_volume+bundle2.total_volume, min_total_dist)
-    else: 
-        # print("exit unfeasible case")    
+    else:     
         return None
 
 # 거리를 고려하여 배달원을 선정할 수 있게 변경
@@ -919,7 +745,6 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 infeasibility = f'A bundle information must be a list of rider type, shop_seq, and dlv_seq! ===> {bundle_info}'
                 break
 
-            print(infeasibility)
             rider_type = bundle_info[0]
             shop_seq = bundle_info[1]
             dlv_seq = bundle_info[2]
@@ -947,19 +772,23 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 if not isinstance(k, int) or k<0 or k>=K:
                     infeasibility = f'Pickup sequence has invalid order number: {k}'
                     break
+
             # Delivery sequence check
             if not isinstance(dlv_seq, list):
                 infeasibility = f'The third bundle infomation must be a list of deliveries! ===> {dlv_seq}'
                 break
+
             for k in dlv_seq:
                 if not isinstance(k, int) or k<0 or k>=K:
                     infeasibility = f'Delivery sequence has invalid order number: {k}'
                     break
+
             # Volume check
             total_volume = get_total_volume(all_orders, shop_seq)
             if total_volume > rider.capa:
                 infeasibility = f"Bundle's total volume exceeds the rider's capacity!: {total_volume} > {rider.capa}"
                 break
+            
             # Deadline chaeck
             pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
 
@@ -982,7 +811,6 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 infeasibility = f'The number of used riders of type {r.type} exceeds the given available limit!'
                 break
 
-        print(infeasibility)
         # Check deliveries
         for k in range(K):
             count = 0
@@ -997,7 +825,6 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
                 infeasibility = f'Order {k} is NOT assigned!'
                 break
 
-        print(infeasibility)
     else:
         infeasibility = 'Solution must be a list of bundle information!'
 
@@ -1022,4 +849,177 @@ def solution_check(K, all_orders, all_riders, dist_mat, solution):
 
 
     return checked_solution
+
+# 주어진 solution의 경로를 visualize
+def draw_route_solution(all_orders, solution=None):
+    
+    plt.subplots(figsize=(8, 8))
+    node_size = 5
+
+    shop_x = [order.shop_lon for order in all_orders]
+    shop_y = [order.shop_lat for order in all_orders]
+    plt.scatter(shop_x, shop_y, c='red', s=node_size, label='SHOPS')
+
+    dlv_x = [order.dlv_lon for order in all_orders]
+    dlv_y = [order.dlv_lat for order in all_orders]
+    plt.scatter(dlv_x, dlv_y, c='blue', s=node_size, label='DLVS')
+
+
+    if solution is not None:
+
+        rider_idx = {
+            'BIKE': 0,
+            'CAR': 0,
+            'WALK': 0
+        }
+
+        for bundle_info in solution['bundles']:
+            rider_type = bundle_info[0]
+            shop_seq = bundle_info[1]
+            dlv_seq = bundle_info[2]
+
+            rider_idx[rider_type] += 1
+
+            route_color = 'gray'
+            if rider_type == 'BIKE':
+                route_color = 'green'
+            elif rider_type == 'WALK':
+                route_color = 'orange'
+
+            route_x = []
+            route_y = []
+            for i in shop_seq:
+                route_x.append(all_orders[i].shop_lon)
+                route_y.append(all_orders[i].shop_lat)
+
+            for i in dlv_seq:
+                route_x.append(all_orders[i].dlv_lon)
+                route_y.append(all_orders[i].dlv_lat)
+
+            plt.plot(route_x, route_y, c=route_color, linewidth=0.5)
+
+    plt.legend()
+
+# 주어진 solution의 경로를 visualize + 지점별 숫자 텍스트 표시
+def draw_route_solution2(all_orders, solution=None):
+    
+    plt.subplots(figsize=(15, 15))
+    node_size = 5
+
+    shop_x = [order.shop_lon for order in all_orders]
+    shop_y = [order.shop_lat for order in all_orders]
+    plt.scatter(shop_x, shop_y, c='red', s=node_size, label='SHOPS')
+
+    delta = 0.4
+    for i in range(len(all_orders)):
+        x = shop_x[i]
+        y = shop_y[i]
+
+        plt.text(x, y, str(i + 1), fontsize=6)
+
+    # plt.text(all_orders[k].ready_time, y+y_delta/2, f'{all_orders[k].ready_time} ', ha='right', va='center', c='white', fontsize=6)
+
+    dlv_x = [order.dlv_lon for order in all_orders]
+    dlv_y = [order.dlv_lat for order in all_orders]
+    plt.scatter(dlv_x, dlv_y, c='blue', s=node_size, label='DLVS')
+
+    for i in range(len(all_orders)):
+        x = dlv_x[i]
+        y = dlv_y[i]
+
+        plt.text(x, y, str(i + 1), fontsize=6)
+
+    if solution is not None:
+
+        rider_idx = {
+            'BIKE': 0,
+            'CAR': 0,
+            'WALK': 0
+        }
+
+        for bundle_info in solution['bundles']:
+            rider_type = bundle_info[0]
+            shop_seq = bundle_info[1]
+            dlv_seq = bundle_info[2]
+
+            rider_idx[rider_type] += 1
+
+            route_color = 'gray'
+            if rider_type == 'BIKE':
+                route_color = 'green'
+            elif rider_type == 'WALK':
+                route_color = 'orange'
+
+            route_x = []
+            route_y = []
+            for i in shop_seq:
+                route_x.append(all_orders[i].shop_lon)
+                route_y.append(all_orders[i].shop_lat)
+
+            for i in dlv_seq:
+                route_x.append(all_orders[i].dlv_lon)
+                route_y.append(all_orders[i].dlv_lat)
+
+            plt.plot(route_x, route_y, c=route_color, linewidth=0.5)
+
+    plt.legend()
+
+# 주어진 soliution의 묶음 배송 방문 시간대를 visualize
+def draw_bundle_solution(all_orders, all_riders, dist_mat, solution):
+
+    plt.subplots(figsize=(6, len(solution['bundles'])))
+
+    x_max = max([ord.deadline for ord in all_orders])
+
+    bundle_gap = 0.3
+    y = 0.2
+
+    plt.yticks([])
+
+    for idx, bundle_info in enumerate(solution['bundles']):
+        rider_type = bundle_info[0]
+        shop_seq = bundle_info[1]
+        dlv_seq = bundle_info[2]
+
+        rider = None
+        for r in all_riders:
+            if r.type == rider_type:
+                rider = r
+
+        y_delta = 0.2
+
+        pickup_times, dlv_times = get_pd_times(all_orders, rider.T, shop_seq, dlv_seq)
+
+        total_volume = 0
+        for k in shop_seq:
+            total_volume += all_orders[k].volume # order volume
+            plt.hlines(y+y_delta/2, all_orders[k].ready_time, all_orders[k].deadline, colors='gray')
+            plt.vlines(all_orders[k].ready_time, y, y+y_delta, colors='gray')
+            plt.vlines(all_orders[k].deadline, y, y+y_delta, colors='gray')
+
+            if total_volume > rider.capa:
+                plt.scatter(pickup_times[k], y+y_delta/2, c='red', zorder=100, marker='^', edgecolors='red', linewidth=0.5)
+            else:
+                plt.scatter(pickup_times[k], y+y_delta/2, c='green', zorder=100)
+
+            if dlv_times[k] > all_orders[k].deadline:
+                plt.scatter(dlv_times[k], y+y_delta/2, c='red', zorder=100, marker='*', edgecolors='red', linewidth=0.5)
+            else:
+                plt.scatter(dlv_times[k], y+y_delta/2, c='orange', zorder=100)
+
+            plt.text(all_orders[k].ready_time, y+y_delta/2, f'{all_orders[k].ready_time} ', ha='right', va='center', c='white', fontsize=6)
+            plt.text(all_orders[k].deadline, y+y_delta/2, f' {all_orders[k].deadline}', ha='left', va='center', c='white', fontsize=6)
+
+            y += y_delta
+
+        dist = get_total_distance(len(all_orders), dist_mat, shop_seq, dlv_seq)
+        cost = rider.calculate_cost(dist)
+
+        plt.text(0, y+y_delta, f'{rider_type}: {shop_seq}-{dlv_seq}, tot_cost={cost}, tot_dist={dist}', ha='left', va='top', c='gray', fontsize=8)
+        y += bundle_gap
+        plt.hlines(y, 0, x_max, colors='gray', linestyles='dotted')
+        y += y_delta/2
+
+
+    plt.ylim(0, y)
     
