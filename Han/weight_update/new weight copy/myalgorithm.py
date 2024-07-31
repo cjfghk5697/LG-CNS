@@ -114,9 +114,7 @@ def parallel_simulated_annealing_with_cawr(K, all_orders, all_riders, dist_mat, 
     pool.close()
     pool.join()
 
-    print(f"Best weights: {best_weights}")
-
     return best_solution
 
-def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
-    return parallel_simulated_annealing_with_cawr(K, all_orders, all_riders, dist_mat, timelimit)
+def algorithm(K, all_orders, all_riders, dist_mat, timelimit):
+    return parallel_simulated_annealing_with_cawr(K, all_orders, all_riders, dist_mat, 50)
