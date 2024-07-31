@@ -1,5 +1,82 @@
-from util_0701 import *
+from han_SA_util import *
 
+def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case):
+    #--------------------------------------------- SA init ---------------------------------------------#
+
+    before_SA_cost = sum(bundle.cost for bundle in all_bundles) / K
+    print("SA starts!!! cur time :", time.time() - start_time)
+    
+    hist = []
+    T = 100000000
+    delta = 0.99
+    T_final = 0.0001
+    cur_solution = deepcopy(all_bundles)
+    cur_cost = before_SA_cost
+    SA_iter_cnt = 0
+    T_mulitiplier = 0.00000001
+
+    for cur_bundle in cur_solution:
+        cur_bundle.update_centroid()
+    
+    #--------------------------------------------- SA init ---------------------------------------------#
+
+    #--------------------------------------------- SA iter ---------------------------------------------#
+
+    is_pre_decreased = False
+    
+    while True:
+        if time.time() - start_time > timelimit - 5 or T <= T_final: 
+            break    
+        SA_iter_cnt += 1
+        
+        new_solution, new_cost = make_new_solution(
+            car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased)
+        
+        if new_cost < cur_cost:
+            cur_solution = new_solution
+            cur_cost = new_cost
+            is_pre_decreased = True
+        elif new_cost == cur_cost:
+            is_pre_decreased = False
+            continue
+        elif new_cost > cur_cost:
+            E_multiplier = 1000 / cur_cost
+            p = math.exp((-(new_cost - cur_cost) * E_multiplier) / (T * T_mulitiplier))
+
+            print(int(new_cost), int(cur_cost), int(T), 
+                (-(new_cost - cur_cost) * E_multiplier) / (T * T_mulitiplier), p)
+            if is_allow_worse_case * p > random.random():
+                print("changed")
+                cur_solution = new_solution
+                cur_cost = new_cost
+            is_pre_decreased = False
+        
+        T *= delta
+        hist.append(cur_cost)
+
+    print("SA iter cnt :", SA_iter_cnt)
+    
+    after_SA_cost = sum(bundle.cost for bundle in cur_solution) / K
+    
+    final_solution = cur_solution
+    if after_SA_cost >= before_SA_cost:
+        final_solution = all_bundles
+        print("SA didn't work!!!")
+
+    for bundle in final_solution:
+        # if len(bundle.shop_seq) > 3:
+        #     continue
+        make_path_optimal(K, dist_mat, bundle, all_orders, all_riders)  
+
+    print(sum(bundle.cost for bundle in final_solution) / K)
+    final_availables = [rider.available_number for rider in all_riders]
+    reassign_riders(K, ALL_ORDERS, ALL_RIDERS, DIST, final_availables, final_solution)
+    
+    plt.plot(hist)
+
+    return final_solution
+    #--------------------------------------------- SA iter ---------------------------------------------#
+    
 
 def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
@@ -47,77 +124,18 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         ALL_RIDERS[rider_i].available_number = min_init_cost_rider_availables[rider_i]
     all_bundles = min_init_cost_bundles
 
-    #--------------------------------------------- SA init ---------------------------------------------#
-    before_SA_cost = sum(bundle.cost for bundle in all_bundles) / K
-    print("SA start!!! cur time :", time.time() - start_time)
-    
-    hist = []
-    T = 100000000
-    delta = 0.99
-    T_final = 0.0001
-    cur_solution = deepcopy(all_bundles)
-    cur_cost = before_SA_cost
-    SA_iter_cnt = 0
-    T_mulitiplier = 0.00000001
+    freeze_support()
 
-    # for bundle in all_bundles:
-    #     if len(bundle.shop_seq) > 3:
-    #         continue
-    #     make_path_optimal(bundle, rider_cnt, all_orders, all_riders) 
-    
-    #--------------------------------------------- SA init ---------------------------------------------#
-
-    #--------------------------------------------- SA iter ---------------------------------------------#
-    is_pre_decreased = False
-    
-    while True:
-        if time.time() - start_time > timelimit - 1 or T <= T_final: 
-            break    
-        SA_iter_cnt += 1
+    num_core = 4
+    with Pool(num_core) as pool:
+        result = pool.starmap(simulated_annealing, [[K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1],
+                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1],
+                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1],
+                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, -1],])
         
-        new_solution, new_cost = make_new_solution(
-            car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased)
-        
-        if new_cost < cur_cost:
-            cur_solution = new_solution
-            cur_cost = new_cost
-            is_pre_decreased = True
-        elif new_cost == cur_cost:
-            is_pre_decreased = False
-            continue
-        elif new_cost > cur_cost:
-            E_multiplier = 0.3
-            p = math.exp((-(new_cost - cur_cost) * E_multiplier) / (T * T_mulitiplier))
-
-            print(int(new_cost), int(cur_cost), int(T), 
-                  (-(new_cost - cur_cost) * E_multiplier) / (T * T_mulitiplier), p)
-            if p > random.random():
-                print("changed")
-                cur_solution = new_solution
-                cur_cost = new_cost
-            is_pre_decreased = False
-        
-        T *= delta
-        hist.append(cur_cost)
-
-    print("SA iter cnt :", SA_iter_cnt)
-    
-    after_SA_cost = sum(bundle.cost for bundle in cur_solution) / K
-    
-    final_solution = cur_solution
-    if after_SA_cost > before_SA_cost:
-        final_solution = all_bundles
-        print("SA didn't work!!!")
-
-    for bundle in final_solution:
-        # if len(bundle.shop_seq) > 3:
-        #     continue
-        make_path_optimal(K, dist_mat, bundle, all_orders, all_riders)  
-
-    plt.plot(hist)
-    #--------------------------------------------- SA iter ---------------------------------------------#
-
-
+    cost_result = [sum(bundle.cost for bundle in cur_solution) / K for cur_solution in result]
+    final_solution_idx = np.argmin(cost_result)
+    final_solution = result[final_solution_idx]
     #------------- End of custom algorithm code--------------#
 
     solution = [

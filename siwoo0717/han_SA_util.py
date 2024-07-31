@@ -1,4 +1,3 @@
-
 import json
 import numpy as np
 from itertools import permutations
@@ -14,6 +13,7 @@ import heapq
 import math
 from copy import deepcopy
 from functools import cmp_to_key
+from multiprocessing import Pool, freeze_support
 #---------------- added ----------------#
 
 def get_dist_by_coords(x1, y1, x2, y2):
@@ -61,6 +61,25 @@ class Rider:
         return self.fixed_cost + dist / 100.0 * self.var_cost
 
 # 묶음 주문 정보
+# class Bundle:
+#     def __init__(self, all_orders, rider, shop_seq, dlv_seq, total_volume, total_dist, feasible=True):
+#         self.rider = rider
+#         self.all_orders = all_orders
+#         self.feasible = feasible
+#         self.shop_seq = shop_seq
+#         self.dlv_seq = dlv_seq
+#         self.total_volume = total_volume
+#         self.total_dist = total_dist
+#         self.update_cost()
+
+#     # 묶음 주문의 비용 update
+#     def update_cost(self):
+#         self.cost = self.rider.calculate_cost(self.total_dist)
+#         self.cost_per_ord = self.cost / len(self.shop_seq)
+
+#     def __repr__(self) -> str:
+#         return f'Bundle(all_orders, {self.rider.type}, {self.shop_seq}, {self.dlv_seq}, {self.total_volume}, {self.feasible})'
+    
 class Bundle:
     def __init__(self, all_orders, rider, shop_seq, dlv_seq, total_volume, total_dist, feasible=True):
         self.rider = rider
@@ -70,6 +89,11 @@ class Bundle:
         self.dlv_seq = dlv_seq
         self.total_volume = total_volume
         self.total_dist = total_dist
+        self.shp_centroid_lat = 0
+        self.shp_centroid_lon = 0
+        self.dlv_centroid_lat = 0
+        self.dlv_centroid_lon = 0
+        self.update_centroid()
         self.update_cost()
 
     # 묶음 주문의 비용 update
@@ -77,6 +101,21 @@ class Bundle:
         self.cost = self.rider.calculate_cost(self.total_dist)
         self.cost_per_ord = self.cost / len(self.shop_seq)
 
+    def update_centroid(self):
+        self.shp_centroid_lat = 0
+        self.shp_centroid_lon = 0
+        self.dlv_centroid_lat = 0
+        self.dlv_centroid_lon = 0
+        sz = len(self.shop_seq)
+        for cur_shp in self.shop_seq:
+            self.shp_centroid_lat += self.all_orders[cur_shp].shop_lat
+            self.shp_centroid_lon += self.all_orders[cur_shp].shop_lon
+            self.dlv_centroid_lat += self.all_orders[cur_shp].dlv_lat
+            self.dlv_centroid_lon += self.all_orders[cur_shp].dlv_lon
+        self.shp_centroid_lat /= sz
+        self.shp_centroid_lon /= sz
+        self.dlv_centroid_lat /= sz
+        self.dlv_centroid_lon /= sz
 
     def __repr__(self) -> str:
         return f'Bundle(all_orders, {self.rider.type}, {self.shop_seq}, {self.dlv_seq}, {self.total_volume}, {self.feasible})'
@@ -1070,6 +1109,14 @@ def get_cos_based_weight(all_orders, bundle1, bundle2):
     return weight
 
 
+def get_dist_between_2centroids(bundle1, bundle2):
+    #return 1
+    return math.sqrt(math.sqrt((bundle1.shp_centroid_lat - bundle2.shp_centroid_lat)**2 + 
+                      (bundle1.shp_centroid_lon - bundle2.shp_centroid_lon)**2) * 
+            math.sqrt((bundle1.dlv_centroid_lat - bundle2.dlv_centroid_lat)**2 + 
+                      (bundle1.dlv_centroid_lon - bundle2.dlv_centroid_lon)**2))
+            
+
 def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
     merged_orders = bundle1.shop_seq + bundle2.shop_seq
     total_volume = get_total_volume(all_orders, merged_orders)
@@ -1097,9 +1144,49 @@ def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
     return None
 
 
+# def insertion(cur_solution, cnt, all_orders, dist_mat, K):
+#     for _ in range(cnt):
+#         cur_bundle, nxt_bundle = random.sample(cur_solution, 2)
+#         node = random.choice(cur_bundle.shop_seq)
+#         tmp_bundle = Bundle(all_orders, nxt_bundle.rider, [node], [node], 
+#                             all_orders[node].volume, dist_mat[node, node + K])
+#         new_bundle = SA_try_merging_bundles(K, dist_mat, all_orders, bundle1=tmp_bundle, bundle2=nxt_bundle) 
+
+#         if new_bundle is not None and new_bundle.rider.available_number > 0:
+#             new_bundle.update_cost()
+            
+#             if len(cur_bundle.shop_seq) == 1:
+#                 cur_bundle.rider.available_number += 1
+#                 cur_solution.remove(cur_bundle)
+                
+#             else:
+#                 cur_bundle.shop_seq.remove(node)
+#                 cur_bundle.dlv_seq.remove(node)
+#                 cur_bundle.total_volume = get_total_volume(all_orders, cur_bundle.shop_seq)
+#                 cur_bundle.total_dist = get_total_distance(K, dist_mat, cur_bundle.shop_seq, cur_bundle.dlv_seq)
+#                 cur_bundle.update_cost()
+
+#             nxt_bundle.rider.available_number += 1
+#             new_bundle.rider.available_number -= 1
+#             cur_solution.remove(nxt_bundle)
+#             cur_solution.append(new_bundle)
+
+
 def insertion(cur_solution, cnt, all_orders, dist_mat, K):
     for _ in range(cnt):
-        cur_bundle, nxt_bundle = random.sample(cur_solution, 2)
+        cur_bundle = random.choice(cur_solution)
+        proba = []
+
+        for cmp_bundle in cur_solution:
+            cur_dist = get_dist_between_2centroids(cmp_bundle, cur_bundle)
+            if cur_dist == 0: 
+                cur_dist = 9999999999999999999999999999
+            proba.append(1 / cur_dist)
+            
+        nxt_bundle = random.choices(cur_solution, weights=proba)[0]
+        if nxt_bundle == cur_bundle:
+            continue
+
         node = random.choice(cur_bundle.shop_seq)
         tmp_bundle = Bundle(all_orders, nxt_bundle.rider, [node], [node], 
                             all_orders[node].volume, dist_mat[node, node + K])
@@ -1118,9 +1205,11 @@ def insertion(cur_solution, cnt, all_orders, dist_mat, K):
                 cur_bundle.total_volume = get_total_volume(all_orders, cur_bundle.shop_seq)
                 cur_bundle.total_dist = get_total_distance(K, dist_mat, cur_bundle.shop_seq, cur_bundle.dlv_seq)
                 cur_bundle.update_cost()
+                cur_bundle.update_centroid()
 
             nxt_bundle.rider.available_number += 1
             new_bundle.rider.available_number -= 1
+            new_bundle.update_centroid()
             cur_solution.remove(nxt_bundle)
             cur_solution.append(new_bundle)
 
@@ -1133,13 +1222,18 @@ def SA_get_cheaper_available_riders(all_riders, rider):
     return None
 
 
-def mutation(cur_solution, cnt, all_orders, all_riders):
+def mutation(cur_solution, cnt, all_orders, all_riders, car_rider):
     for _ in range(cnt):
         cur_bundle = random.choice(cur_solution)
         old_rider = cur_bundle.rider
         new_rider = SA_get_cheaper_available_riders(all_riders, old_rider)
         
         if new_rider is not None:
+            if 0.2 > random.random():
+                if try_bundle_rider_changing(all_orders, cur_bundle, car_rider):
+                    old_rider.available_number += 1
+                    new_rider.available_number -= 1
+                
             if try_bundle_rider_changing(all_orders, cur_bundle, new_rider):
                 old_rider.available_number += 1
                 new_rider.available_number -= 1
@@ -1186,6 +1280,7 @@ def rebundling(cur_solution, cnt, all_orders, car_rider, dist_mat, K):
         for cur_shp in cur_shp_seq:
             new_bundle = Bundle(
                 all_orders, car_rider, [cur_shp], [cur_shp], all_orders[cur_shp].volume, dist_mat[cur_shp, cur_shp+K])
+            new_bundle.update_centroid()
             cur_solution.append(new_bundle)
             car_rider.available_number -= 1
 
@@ -1239,7 +1334,7 @@ def make_new_solution(car_rider, K, cur_solution, all_riders, all_orders, dist_m
         
         insertion(new_solution, int(momentum * max(1, int(math.log2(T) * 1.2))), all_orders, dist_mat, K)
         if 0.8 < random.random():
-            mutation(new_solution, int(momentum * max(1, int(math.log2(T)))), all_orders, all_riders)
+            mutation(new_solution, int(momentum * max(1, int(math.log2(T)))), all_orders, all_riders, car_rider)
         if 0.9 < random.random():
             rebundling(new_solution, int(momentum * max(1, int(math.log2(T) / 4))), all_orders, car_rider, dist_mat, K)
         
