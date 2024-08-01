@@ -1,6 +1,6 @@
 from han_SA_util import *
 
-def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case):
+def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, init_availables, is_allow_worse_case):
     #--------------------------------------------- SA init ---------------------------------------------#
 
     before_SA_cost = sum(bundle.cost for bundle in all_bundles) / K
@@ -14,9 +14,9 @@ def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bund
     cur_cost = before_SA_cost
     SA_iter_cnt = 0
     T_mulitiplier = 0.00000001
-    max_iter_cnt = 100
+    max_iter_cnt = 200
     T_max = T
-    T_min = 10000
+    T_min = 100000
 
     for cur_bundle in cur_solution:
         cur_bundle.update_centroid()
@@ -28,12 +28,12 @@ def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bund
     is_pre_decreased = False
     
     while True:
-        if time.time() - start_time > timelimit - 5 or T <= T_final: 
+        if time.time() - start_time > timelimit - 2 or T <= T_final: 
             break    
         SA_iter_cnt += 1
         
         new_solution, new_cost = make_new_solution(
-            car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased)
+            car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased, init_availables)
         
         if new_cost < cur_cost:
             cur_solution = new_solution
@@ -72,8 +72,8 @@ def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bund
         make_path_optimal(K, dist_mat, bundle, all_orders, all_riders)  
 
     print(sum(bundle.cost for bundle in final_solution) / K)
-    final_availables = [rider.available_number for rider in all_riders]
-    reassign_riders(K, ALL_ORDERS, ALL_RIDERS, DIST, final_availables, final_solution)
+    #init_availables = [rider.available_number for rider in all_riders]
+    reassign_riders(K, ALL_ORDERS, ALL_RIDERS, DIST, init_availables, final_solution)
     
     plt.plot(hist)
 
@@ -98,13 +98,13 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     #------------- Custom algorithm code starts from here --------------#
     inf = float('inf')
 
-    init_availables = [rider.available_number for rider in all_riders]
+    init_availables = deepcopy([rider.available_number for rider in all_riders])
 
     car_rider = [rider for rider in all_riders if rider.type == 'CAR'][0]
     bike_rider = [rider for rider in all_riders if rider.type == 'BIKE'][0]
     walk_rider = [rider for rider in all_riders if rider.type == 'WALK'][0]
 
-    init_availables = [rider.available_number for rider in all_riders]
+    #init_availables = [rider.available_number for rider in all_riders]
 
     min_init_cost = inf
     min_init_cost_bundle = []
@@ -124,7 +124,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     #             min_init_cost_rider_availables = result_rider_availables
     
     for weight1, weight2 in [(1, -1), (1, -2), (1, -2.5), (1, -3), (1, -3.5), (1, -4)]:
-        if time.time() - start_time > 20: 
+        if time.time() - start_time > 30: 
             break
         bundles, result_rider_availables, cost = get_init_bundle_4_order_bundle_prefered_with_reassigning_riders(
                  K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2)
@@ -142,10 +142,10 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     num_core = 4
     with Pool(num_core) as pool:
-        result = pool.starmap(simulated_annealing, [[K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1],
-                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1],
-                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1],
-                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, -1],])
+        result = pool.starmap(simulated_annealing, [[K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, init_availables, 1],
+                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, init_availables, 1],
+                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, init_availables, 1],
+                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, init_availables, -1],])
         
     cost_result = [sum(bundle.cost for bundle in cur_solution) / K for cur_solution in result]
     final_solution_idx = np.argmin(cost_result)
