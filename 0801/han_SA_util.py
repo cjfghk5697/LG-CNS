@@ -1119,12 +1119,11 @@ def get_dist_between_2centroids(bundle1, bundle2):
 
 def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
     merged_orders = bundle1.shop_seq + bundle2.shop_seq
-    merged_orders_shp = sorted(merged_orders, key = lambda x : all_orders[x].cook_time)
-    merged_orders_dlv = sorted(merged_orders, key = lambda x : all_orders[x].deadline)
+    # merged_orders_shp = sorted(merged_orders, key = lambda x : all_orders[x].cook_time)
+    # merged_orders_dlv = sorted(merged_orders, key = lambda x : all_orders[x].deadline)
     
     total_volume = get_total_volume(all_orders, merged_orders)
     
-
     if bundle1.rider.type == bundle2.rider.type:
         riders = [bundle1.rider]
     else:
@@ -1134,9 +1133,9 @@ def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
         if rider.available_number <= 0: 
             continue
         # We skip the test if there are too many orders
-        if total_volume <= rider.capa and len(merged_orders_shp) <= 4:
-            for shop_pem in permutations(merged_orders_shp):
-                for dlv_pem in permutations(merged_orders_dlv):
+        if total_volume <= rider.capa and len(merged_orders) <= 4:
+            for shop_pem in permutations(merged_orders):
+                for dlv_pem in permutations(merged_orders):
                     feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
                     if feasibility_check == 0:  # feasible!
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
