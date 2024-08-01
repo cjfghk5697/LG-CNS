@@ -1119,11 +1119,12 @@ def get_dist_between_2centroids(bundle1, bundle2):
 
 def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
     merged_orders = bundle1.shop_seq + bundle2.shop_seq
-    # merged_orders_shp = sorted(merged_orders, key = lambda x : all_orders[x].cook_time)
-    # merged_orders_dlv = sorted(merged_orders, key = lambda x : all_orders[x].deadline)
+    merged_orders_shp = sorted(merged_orders, key = lambda x : all_orders[x].cook_time)
+    merged_orders_dlv = sorted(merged_orders, key = lambda x : all_orders[x].deadline)
     
     total_volume = get_total_volume(all_orders, merged_orders)
     
+
     if bundle1.rider.type == bundle2.rider.type:
         riders = [bundle1.rider]
     else:
@@ -1133,9 +1134,9 @@ def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
         if rider.available_number <= 0: 
             continue
         # We skip the test if there are too many orders
-        if total_volume <= rider.capa and len(merged_orders) <= 4:
-            for shop_pem in permutations(merged_orders):
-                for dlv_pem in permutations(merged_orders):
+        if total_volume <= rider.capa and len(merged_orders_shp) <= 4:
+            for shop_pem in permutations(merged_orders_shp):
+                for dlv_pem in permutations(merged_orders_dlv):
                     feasibility_check = test_route_feasibility(all_orders, rider, shop_pem, dlv_pem)
                     if feasibility_check == 0:  # feasible!
                         total_dist = get_total_distance(K, dist_mat, shop_pem, dlv_pem)
@@ -1177,6 +1178,8 @@ def SA_try_merging_bundles(K, dist_mat, all_orders, bundle1, bundle2):
 
 def insertion(cur_solution, cnt, all_orders, dist_mat, K):
     for _ in range(cnt):
+        # inverst_bundle_cnt = [math.sqrt(1 / len(cur_bundle.shop_seq)) for cur_bundle in cur_solution]
+        # cur_bundle = random.choices(cur_solution, weights=inverst_bundle_cnt)[0]
         cur_bundle = random.choice(cur_solution)
         proba = []
 
@@ -1328,7 +1331,7 @@ def make_path_optimal(K, dist_mat, cur_bundle, all_orders, all_riders):
                 new_rider.available_number -= 1
                                
 
-def make_new_solution(car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased):
+def make_new_solution(car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased, init_availables):
         new_solution = deepcopy(cur_solution)
         
         momentum = 1
@@ -1340,6 +1343,8 @@ def make_new_solution(car_rider, K, cur_solution, all_riders, all_orders, dist_m
             mutation(new_solution, int(momentum * max(1, int(math.log2(T)))), all_orders, all_riders, car_rider)
         if 0.85 < random.random():
             rebundling(new_solution, int(momentum * max(1, int(math.log2(T) / 4))), all_orders, car_rider, dist_mat, K)
+        # if 0.9 < random.random():
+        #     reassign_riders(K, all_orders, all_riders, dist_mat, init_availables, cur_solution)
         
         new_cost = sum(bundle.cost for bundle in new_solution) / K
         return new_solution, new_cost
