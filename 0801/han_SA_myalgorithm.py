@@ -53,7 +53,7 @@ def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bund
                 cur_solution = new_solution
                 cur_cost = new_cost
             is_pre_decreased = False
-        
+        #T *= delta
         T = get_nxt_T_with_cos_annealing(T, T_min, T_max, SA_iter_cnt, max_iter_cnt)
         hist.append(cur_cost)
 
@@ -124,6 +124,8 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     #             min_init_cost_rider_availables = result_rider_availables
     
     for weight1, weight2 in [(1, -1), (1, -2), (1, -2.5), (1, -3), (1, -3.5), (1, -4)]:
+        if time.time() - start_time > 20: 
+            break
         bundles, result_rider_availables, cost = get_init_bundle_4_order_bundle_prefered_with_reassigning_riders(
                  K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2)
 
