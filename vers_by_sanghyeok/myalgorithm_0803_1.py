@@ -1,8 +1,8 @@
-# https://github.com/cjfghk5697/LG-CNS/blob/han/Han/based%20siwoo/weight%20update%20function%20copy%202/han_SA_myalgorithm.py 개선 시도 - 확인용
+# https://github.com/cjfghk5697/LG-CNS/blob/han/Han/based%20siwoo/weight%20update%20function%20copy%202/han_SA_myalgorithm.py 주문 쌍 확인 코드의 탐색 가중치 수량 확인
 
-from util_0802_2 import *
+from util_0803_1 import *
 
-def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case, init_availables):
+def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case, init_availables, order_comb_possibility):
     #--------------------------------------------- SA init ---------------------------------------------#
 
     before_SA_cost = sum(bundle.cost for bundle in all_bundles) / K
@@ -35,7 +35,7 @@ def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bund
         SA_iter_cnt += 1
         
         new_solution, new_cost = make_new_solution(
-            car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased, init_availables)
+            car_rider, K, cur_solution, all_riders, all_orders, dist_mat, T, is_pre_decreased, init_availables, order_comb_possibility)
         
         if new_cost < cur_cost:
             cur_solution = new_solution
@@ -108,6 +108,27 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
     init_availables = [rider.available_number for rider in all_riders]
 
+    all_bundles = []
+    for ord in ALL_ORDERS:
+        new_bundle = Bundle(ALL_ORDERS, car_rider, [ord.id], [ord.id], ord.volume, DIST[ord.id, ord.id+K])
+        car_rider.available_number -= 1
+        all_bundles.append(new_bundle)
+
+    order_comb_possibility = [[True] * K for _ in range(K)]
+    for i in range(len(all_bundles)):
+        for j in range(i + 1, len(all_bundles)):
+            bundle1 = all_bundles[i]
+            bundle2 = all_bundles[j]
+
+            order_num1 = bundle1.shop_seq[0]
+            order_num2 = bundle2.shop_seq[0]
+
+            ip = try_merging_bundles_by_dist(K, DIST, ALL_ORDERS, ALL_RIDERS, bundle1, bundle2)
+
+            if not ip:
+                order_comb_possibility[order_num1][order_num2] = False
+                order_comb_possibility[order_num2][order_num1] = False
+
     min_init_cost = inf
     min_init_cost_bundles = []
     min_init_cost_rider_availables = []
@@ -124,7 +145,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
         temp_start_time = time.time()
         bundles, result_rider_availables, cost = get_init_bundle_4_order_bundle_prefered_with_reassigning_riders(
-                K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2)
+                K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, order_comb_possibility)
         temp_end_time = time.time()
 
         temp_process_time = temp_end_time - temp_start_time
@@ -135,32 +156,5 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             min_init_cost_bundles = bundles
             min_init_cost_rider_availables = result_rider_availables
 
-    # for rider_i in range(3):
-    #     ALL_RIDERS[rider_i].available_number = min_init_cost_rider_availables[rider_i]
-    # all_bundles = min_init_cost_bundles
 
-    # freeze_support()
-
-    # num_core = 4
-    # with Pool(num_core) as pool:
-    #     result = pool.starmap(simulated_annealing, [[K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1, init_availables],
-    #                                                 [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1, init_availables],
-    #                                                 [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1, init_availables],
-    #                                                 [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, -1, init_availables],])
-        
-    # cost_result = [sum(bundle.cost for bundle in cur_solution) / K for cur_solution in result]
-    # final_solution_idx = np.argmin(cost_result)
-    # final_solution = result[final_solution_idx]
-    #------------- End of custom algorithm code--------------#
-
-    # solution = [
-    #         # rider type, shop_seq, dlv_seq
-    #         [bundle.rider.type, bundle.shop_seq, bundle.dlv_seq]
-    #         for bundle in final_solution
-    # ]
-
-    end_time = time.time()
-
-    process_time = end_time - start_time
-
-    return processed_weight_comb_c
+    return processed_weight_comb_c, min_init_cost
