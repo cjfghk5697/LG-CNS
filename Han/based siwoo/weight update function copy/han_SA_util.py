@@ -1340,9 +1340,9 @@ def make_new_solution(car_rider, K, cur_solution, all_riders, all_orders, dist_m
             momentum = 1
         
         insertion(new_solution, int(momentum * max(1, int(math.log2(T) * 1.2))), all_orders, dist_mat, K)
-        if 0.8 < random.random():
+        if 0.5 < random.random():
             mutation(new_solution, int(momentum * max(1, int(math.log2(T)))), all_orders, all_riders, car_rider)
-        if 0.85 < random.random():
+        if 0.5 < random.random():
             rebundling(new_solution, int(momentum * max(1, int(math.log2(T) / 4))), all_orders, car_rider, dist_mat, K)
         # if 0.9 < random.random():
         #     reassign_riders(K, all_orders, all_riders, dist_mat, init_availables, cur_solution)
