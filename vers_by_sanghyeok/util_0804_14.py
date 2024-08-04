@@ -1,4 +1,4 @@
-# 0804_4, 5, 6, 7, 8과 동일
+# 0804_4, 5, 6, 7, 8, 11과 동일
 
 import json
 import numpy as np
