@@ -1,7 +1,6 @@
-# 8-4_bundling_opt_ver1_5Orders3_WalkOpt
+# 8-4_bundling_opt_ver1_5Orders5_WalkOpt
 
-# from util_0804_10 import *
-from util_0804_12 import *
+from util_0804_13 import *
 
 def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case, init_availables, order_comb_possibility):
     #--------------------------------------------- SA init ---------------------------------------------#
@@ -161,7 +160,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
         temp_start_time = time.time()
         
-        bundles, result_rider_availables, _ = get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, order_comb_possibility, optimized_order_perms, False, 3)
+        bundles, result_rider_availables, _ = get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, order_comb_possibility, optimized_order_perms, False, 2)
 
         bundles, result_rider_availables, _ = get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, order_comb_possibility, optimized_order_perms, False, 5)
         for rider_i in range(3):
