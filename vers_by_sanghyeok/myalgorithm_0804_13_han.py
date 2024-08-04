@@ -1,6 +1,6 @@
 # 8-4_bundling_opt_ver1_5Orders5_WalkOpt
 
-from util_0804_13 import *
+from util_0804_13_han import *
 
 
 def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case, init_availables, order_comb_possibility):
@@ -141,12 +141,12 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
     if K >= 200:
         for weight1 in [0.5, 1, 1.5, 0]:
             for weight2 in [-0.5, -1, -1.5, 0]:
-                weight_grid.append((weight1, weight2, -0.5))
+                weight_grid.append((weight1, weight2, -0.5, 1))
     else:
         for weight1 in [0.5, 1, 1.5, 0]:
             for weight2 in [-0.5, -1, -1.5, 0, -2]:
                 for weight3 in [-1, -0.5, 0, 0.5, 1, 1.5]:
-                    for weight4 in [0, -0.5, -1, -1.5]:
+                    for weight4 in [2, 1.5, 1, 0.5, 0, -0.5]:
                         weight_grid.append((weight1, weight2, weight3, weight4))
 
     # weight_grid.sort(key=lambda x: (x[0] + abs(x[1]) + abs(x[2])))

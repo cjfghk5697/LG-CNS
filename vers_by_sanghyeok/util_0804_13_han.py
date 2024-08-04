@@ -185,7 +185,7 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
         weight1 += random.choice([-1, -0.5, 0, 0.5, 1])
         weight2 += random.choice([-1, -0.5, 0, 0.5, 1])
         weight3 += random.choice([-0.5, 0, 0.5])
-        weight4 += random.choice([-0.5, 0, 0.5])
+        weight4 += random.choice([-1, -0.5, 0, 0.5, 1])
 
     edges = []
     for i in range(len(all_bundles)):
