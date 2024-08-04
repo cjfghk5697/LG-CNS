@@ -146,14 +146,15 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         for weight1 in [0.5, 1, 1.5, 0]:
             for weight2 in [-0.5, -1, -1.5, 0, -2]:
                 for weight3 in [-1, -0.5, 0, 0.5, 1, 1.5]:
-                    weight_grid.append((weight1, weight2, weight3))
+                    for weight4 in [0, -0.5, -1, -1.5]:
+                        weight_grid.append((weight1, weight2, weight3, weight4))
 
     # weight_grid.sort(key=lambda x: (x[0] + abs(x[1]) + abs(x[2])))
 
     min_weight_comb = []
 
     first_process_time = 0
-    for weight_i, (weight1, weight2, weight3) in enumerate(weight_grid):
+    for weight_i, (weight1, weight2, weight3, weight4) in enumerate(weight_grid):
         cur_time = time.time()
         cumul_processed_time = cur_time - start_time
         if cumul_processed_time > 30 or (weight_i >= 1 and cumul_processed_time + first_process_time > 35):
@@ -161,9 +162,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
 
         temp_start_time = time.time()
         
-        bundles, result_rider_availables, _ = get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, order_comb_possibility, optimized_order_perms, False, 2)
+        bundles, result_rider_availables, _ = get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, order_comb_possibility, optimized_order_perms, False, 2)
 
-        bundles, result_rider_availables, _ = get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, order_comb_possibility, optimized_order_perms, False, 5)
+        bundles, result_rider_availables, _ = get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, order_comb_possibility, optimized_order_perms, False, 5)
         for rider_i in range(3):
             ALL_RIDERS[rider_i].available_number = result_rider_availables[rider_i]
 
@@ -181,9 +182,9 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
             min_init_cost = cost
             min_init_cost_bundles = bundles
             min_init_cost_rider_availables = result_rider_availables
-            min_weight_comb = [weight1, weight2, weight3]
+            min_weight_comb = [weight1, weight2, weight3, weight4]
 
-    weight1, weight2, weight3 = min_weight_comb
+    weight1, weight2, weight3, weight4 = min_weight_comb
 
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = min_init_cost_rider_availables[rider_i]
