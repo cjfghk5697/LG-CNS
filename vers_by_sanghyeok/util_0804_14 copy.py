@@ -1,21 +1,21 @@
-# 0804_4, 5, 6, 7, 8과 동일
+# 0804_4, 5, 6, 7, 8, 11과 동일
 
-import json
-import numpy as np
-from itertools import permutations
-import random
-import time
-import pprint
 import copy
-
-import matplotlib.pyplot as plt
-
 #---------------- added ----------------#
 import heapq
+import json
 import math
+import pprint
+import random
+import time
 from copy import deepcopy
 from functools import cmp_to_key
+from itertools import permutations
 from multiprocessing import Pool, freeze_support
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 #---------------- added ----------------#
 
 def get_dist_by_coords(x1, y1, x2, y2):
@@ -123,7 +123,7 @@ class Bundle:
         return f'Bundle(all_orders, {self.rider.type}, {self.shop_seq}, {self.dlv_seq}, {self.total_volume}, {self.feasible})'
 
 # 크루스칼 알고리즘 방식을 활용하여 번들별 초기 할당을 하는 함수
-def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, bundle_merging_function, order_count_upper_limit, avg_method, all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added):
+def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, bundle_merging_function, order_count_upper_limit, avg_method, all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added):
     def find(v):
         while v != parent[v]:
             parent[v] = parent[parent[v]]
@@ -182,9 +182,10 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
         bundle.avg_info = avg_info
 
     if is_random_num_added:
-        weight1 += random.choice([-1, -0.5, 0, 0.5, 1])
-        weight2 += random.choice([-1, -0.5, 0, 0.5, 1])
-        weight3 += random.choice([-0.5, 0, 0.5])
+        weight1 += random.choice([-.8, -0.4, 0, .4, .8])
+        weight2 += random.choice([-.8, -.4, 0, .4, .8])
+        weight3 += random.choice([-0.4, 0, 0.4])
+        weight4 += random.choice([-0.3, 0, 0.4, 0.8])
 
     edges = []
     for i in range(len(all_bundles)):
@@ -235,7 +236,7 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
             else:
                 assert False
 
-            diff_score = dist1 + dist2 + r_diff * weight1 + d_diff * weight1 + start_end_diff * weight2 + twl_avg * weight3
+            diff_score = (dist1 + dist2) *weight4 + r_diff * weight1 + d_diff * weight1 + start_end_diff * weight2 + twl_avg * weight3
             if is_random_num_added:
                 diff_score += random.randint(0, 500)
 
@@ -273,7 +274,7 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
     return result_bundles, rider_availables
 
 # bundle_merging_function으로 합친 번들을 반환하는 함수를 사용 가능함
-def get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, bundle_merging_function,  order_comb_possibility, optimized_order_perms, is_random_num_added, order_count_upper_limit=3):
+def get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, weight4, bundle_merging_function,  order_comb_possibility, optimized_order_perms, is_random_num_added, order_count_upper_limit=3):
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
 
@@ -288,7 +289,7 @@ def get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, w
         car_rider.available_number -= 1
         all_bundles.append(new_bundle)
 
-    all_bundles, rider_abailables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, order_count_upper_limit, 'two_seq', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    all_bundles, rider_abailables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, order_count_upper_limit, 'two_seq', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
 
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
@@ -296,7 +297,7 @@ def get_init_bundle(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, w
     return all_bundles, rider_abailables, sum((bundle.cost for bundle in all_bundles)) / K
 
 # 2 -> 4 -> 3 형태 위주로 try_merging_bundles_by_dist를 사용하여 번들을 차례대로 생성하는 함수
-def get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, order_comb_possibility, optimized_order_perms, is_random_num_added):
+def get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, weight4, order_comb_possibility, optimized_order_perms, is_random_num_added):
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
 
@@ -312,10 +313,10 @@ def get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, ini
         all_bundles.append(new_bundle)
 
     # 2개 주문 묶음 생성
-    all_bundles, _ = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, 2, 'two_seq', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    all_bundles, _ = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, 2, 'two_seq', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
 
     # 4개 주문 묶음 생성
-    all_bundles, _ = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, 4, 'avg', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    all_bundles, _ = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, 4, 'avg', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
 
     # 2개 이하 주문이 묶인 번들을 전부 푼 다음 다시 생성
     new_all_bundles = []
@@ -332,14 +333,14 @@ def get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, ini
                 car_rider.available_number -= 1
                 new_all_bundles.append(new_bundle)
 
-    result_bundles, result_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, 3, 'two', new_all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    result_bundles, result_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, 3, 'two', new_all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
 
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
     return result_bundles, result_availables, sum((bundle.cost for bundle in result_bundles)) / K
 
 # 5 -> 2 -> 4 -> 3 형태 위주로 try_merging_bundles_by_dist를 사용하여 번들을 차례대로 생성하는 함수
-def get_init_bundle_5_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, order_comb_possibility, optimized_order_perms, is_random_num_added):
+def get_init_bundle_5_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, weight4, order_comb_possibility, optimized_order_perms, is_random_num_added):
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = init_availables[rider_i]
 
@@ -355,7 +356,7 @@ def get_init_bundle_5_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, ini
         all_bundles.append(new_bundle)
 
     # 최대 5개 주문 묶음 생성
-    all_bundles, rider_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, 5, 'two_seq', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    all_bundles, rider_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, 5, 'two_seq', all_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = rider_availables[rider_i]
 
@@ -376,10 +377,10 @@ def get_init_bundle_5_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, ini
                 remained_bundles.append(new_bundle)
 
     # 최대 2개 주문 묶음 생성
-    remained_bundles, _ = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, 2, 'two', remained_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    remained_bundles, _ = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, 2, 'two', remained_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
 
     # 최대 4개 주문 묶음 생성
-    remained_bundles, _= kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, 3, 'two', remained_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    remained_bundles, _= kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, 3, 'two', remained_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
     
     # 3, 4주문 번들은 따로 저장하고 2개 이하 주문이 묶인 번들을 전부 풀기
     new_remained_bundles = []
@@ -397,7 +398,7 @@ def get_init_bundle_5_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, ini
                 new_remained_bundles.append(new_bundle)
 
     # 최대 3개 주문 묶음 생성
-    new_remained_bundles, result_rider_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, try_merging_bundles_by_dist_possibles_only, 3, 'two', new_remained_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
+    new_remained_bundles, result_rider_availables = kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3, weight4, try_merging_bundles_by_dist_possibles_only, 3, 'two', new_remained_bundles, order_comb_possibility, optimized_order_perms, is_random_num_added)
 
     result_bundles = grouped_bundles + new_remained_bundles
 
@@ -567,8 +568,8 @@ def reduce_dimension(sorted_orders):
 
     return reduced_value
 
-def get_init_bundle_4_order_bundle_prefered_with_reassigning_riders(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, order_comb_possibility, optimized_order_perms, is_random_num_added):
-    all_bundles, rider_availables, _ = get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, order_comb_possibility, optimized_order_perms, is_random_num_added)
+def get_init_bundle_4_order_bundle_prefered_with_reassigning_riders(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, weight4, order_comb_possibility, optimized_order_perms, is_random_num_added):
+    all_bundles, rider_availables, _ = get_init_bundle_4_order_bundle_prefered(K, ALL_RIDERS, ALL_ORDERS, DIST, init_availables, weight1, weight2, weight3, weight4, order_comb_possibility, optimized_order_perms, is_random_num_added)
     for rider_i in range(3):
         ALL_RIDERS[rider_i].available_number = rider_availables[rider_i]
 

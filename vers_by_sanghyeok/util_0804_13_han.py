@@ -182,10 +182,10 @@ def kruskal_bundling(K, DIST, ALL_ORDERS, ALL_RIDERS, weight1, weight2, weight3,
         bundle.avg_info = avg_info
 
     if is_random_num_added:
-        weight1 += random.choice([-1, -0.5, 0, 0.5, 1])
-        weight2 += random.choice([-1, -0.5, 0, 0.5, 1])
-        weight3 += random.choice([-0.5, 0, 0.5])
-        weight4 += random.choice([-1, -0.5, 0, 0.5, 1])
+        weight1 += random.choice([-0.8, -0.4, 0, 0.4, 0.8])
+        weight2 += random.choice([-0.8, -0.4, 0, 0.4, 0.8])
+        weight3 += random.choice([-0.6, -0.3, 0, 0.3, 0.6])
+        weight4 += random.choice([-0.6, -0.3, 0, 0.3, 0.6])
 
     edges = []
     for i in range(len(all_bundles)):
@@ -1569,7 +1569,7 @@ def make_new_solution(car_rider, K, cur_solution, all_riders, all_orders, dist_m
 
 
 def get_nxt_T_with_cos_annealing(cur_T, T_min, T_max, tot_iter, max_iter):
-    cur_iter = tot_iter 
+    cur_iter = tot_iter % max_iter
     nxt_T = T_min + (T_max - T_min) * 0.5 * (1 + np.cos(np.pi * cur_iter / max_iter))
     
     return nxt_T

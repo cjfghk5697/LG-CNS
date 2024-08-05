@@ -1,21 +1,21 @@
-# 0804_4, 5, 6, 7, 8과 동일
+# 0804_4, 5, 6, 7, 8, 11과 동일
 
-import json
-import numpy as np
-from itertools import permutations
-import random
-import time
-import pprint
 import copy
-
-import matplotlib.pyplot as plt
-
 #---------------- added ----------------#
 import heapq
+import json
 import math
+import pprint
+import random
+import time
 from copy import deepcopy
 from functools import cmp_to_key
+from itertools import permutations
 from multiprocessing import Pool, freeze_support
+
+import matplotlib.pyplot as plt
+import numpy as np
+
 #---------------- added ----------------#
 
 def get_dist_by_coords(x1, y1, x2, y2):

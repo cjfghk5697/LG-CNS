@@ -1,5 +1,7 @@
 # 8-4_bundling_opt_ver1_5Orders5_WalkOpt
 
+import multiprocessing as mp
+
 from util_0804_13_han import *
 
 
@@ -84,7 +86,7 @@ def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bund
     #--------------------------------------------- SA iter ---------------------------------------------#
     
 
-def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
+def test_mp(K, all_orders, all_riders, dist_mat, timelimit=60, num=1):
 
     ALL_ORDERS = all_orders
     ALL_RIDERS = all_riders
@@ -146,7 +148,7 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         for weight1 in [0.5, 1, 1.5, 0]:
             for weight2 in [-0.5, -1, -1.5, 0, -2]:
                 for weight3 in [-1, -0.5, 0, 0.5, 1, 1.5]:
-                    for weight4 in [2, 1.5, 1, 0.5, 0, -0.5]:
+                    for weight4 in [1.5, 1, 0.5, 0]:
                         weight_grid.append((weight1, weight2, weight3, weight4))
 
     # weight_grid.sort(key=lambda x: (x[0] + abs(x[1]) + abs(x[2])))
@@ -190,24 +192,27 @@ def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
         ALL_RIDERS[rider_i].available_number = min_init_cost_rider_availables[rider_i]
     all_bundles = min_init_cost_bundles
 
-    freeze_support()
 
-    num_core = 4
-    with Pool(num_core) as pool:
-        result = pool.starmap(simulated_annealing, [[K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1, init_availables, order_comb_possibility],
-                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1, init_availables, order_comb_possibility],
-                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, 1, init_availables, order_comb_possibility],
-                                                    [K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, -1, init_availables, order_comb_possibility],])
-        
+    result = simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, num, init_availables, order_comb_possibility)
+                                                    
+    return result
+
+def algorithm(K, all_orders, all_riders, dist_mat, timelimit=60):
+    num_process=4
+    pool=mp.Pool(processes=num_process)
+    
+    result=pool.starmap(test_mp, [[K, all_orders, all_riders, dist_mat, timelimit, 1],
+                                  [K, all_orders, all_riders, dist_mat, timelimit, 1],
+                                  [K, all_orders, all_riders, dist_mat, timelimit, 1],
+                                   [K, all_orders, all_riders, dist_mat, timelimit, -1]])
+    
     cost_result = [sum(bundle.cost for bundle in cur_solution) / K for cur_solution in result]
     final_solution_idx = np.argmin(cost_result)
     final_solution = result[final_solution_idx]
     # #------------- End of custom algorithm code--------------#
-
     solution = [
             # rider type, shop_seq, dlv_seq
             [bundle.rider.type, bundle.shop_seq, bundle.dlv_seq]
             for bundle in final_solution
     ]
-
     return solution
