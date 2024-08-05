@@ -5,7 +5,7 @@ from util_0804_2 import *
 
 def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case, init_availables, order_comb_possibility):
     #--------------------------------------------- SA init ---------------------------------------------#
-
+    
     before_SA_cost = sum(bundle.cost for bundle in all_bundles) / K
     print("SA starts!!! cur time :", time.time() - start_time)
     

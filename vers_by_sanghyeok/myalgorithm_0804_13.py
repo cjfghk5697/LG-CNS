@@ -2,7 +2,6 @@
 
 from util_0804_13 import *
 
-
 def simulated_annealing(K, all_orders, all_riders, dist_mat, timelimit, all_bundles, start_time, car_rider, ALL_ORDERS, ALL_RIDERS, DIST, is_allow_worse_case, init_availables, order_comb_possibility):
     #--------------------------------------------- SA init ---------------------------------------------#
 

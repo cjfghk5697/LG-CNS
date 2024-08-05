@@ -1,21 +1,21 @@
 # 0804_4, 5, 6, 7 + 4번들부터는 walk 사용 안함 - 디버깅 완료
 
-import copy
-#---------------- added ----------------#
-import heapq
 import json
-import math
-import pprint
+import numpy as np
+from itertools import permutations
 import random
 import time
-from copy import deepcopy
-from functools import cmp_to_key
-from itertools import permutations
-from multiprocessing import Pool, freeze_support
+import pprint
+import copy
 
 import matplotlib.pyplot as plt
-import numpy as np
 
+#---------------- added ----------------#
+import heapq
+import math
+from copy import deepcopy
+from functools import cmp_to_key
+from multiprocessing import Pool, freeze_support
 #---------------- added ----------------#
 
 def get_dist_by_coords(x1, y1, x2, y2):
